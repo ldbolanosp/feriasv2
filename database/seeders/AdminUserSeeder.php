@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Feria;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -19,5 +20,8 @@ class AdminUserSeeder extends Seeder
         );
 
         $admin->syncRoles(['administrador']);
+        $admin->ferias()->syncWithoutDetaching(
+            Feria::query()->where('activa', true)->pluck('id')->all()
+        );
     }
 }
