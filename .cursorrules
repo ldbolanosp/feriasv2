@@ -1,0 +1,279 @@
+# Ferias del Agricultor — Cursor Rules
+
+## CONTEXTO DEL PROYECTO
+Antes de generar cualquier código, lee el archivo `PROJECT_CONTEXT.md` en la raíz del proyecto. Es la fuente de verdad de arquitectura, modelo de datos, API, UI y permisos.
+
+## STACK
+- **Backend:** Laravel 13+ (PHP 8.5+) con PostgreSQL
+- **Frontend:** React 18+ SPA con TypeScript, Vite, Tailwind CSS, shadcn/ui
+- **Auth:** Laravel Sanctum (cookies SPA)
+- **Permisos:** Spatie Laravel Permission
+- **Estado servidor:** TanStack Query (React Query)
+- **Estado cliente:** Zustand
+- **Formularios:** React Hook Form + Zod
+- **Iconos:** Lucide React
+- **Gráficos:** Recharts
+- **PDFs:** DOMPDF
+
+## IDIOMA
+- Todo el código (variables, funciones, clases, comentarios) se escribe en **español** excepto:
+  - Palabras reservadas del lenguaje (function, return, class, etc.)
+  - Nombres de paquetes/librerías
+  - Convenciones de Laravel que usan inglés (index, store, show, update, destroy, created_at, etc.)
+  - Nombres de archivos de configuración de Laravel
+- Nombres de tablas, modelos, columnas, rutas y enums: en **español**
+- Mensajes de error y validación: en **español**
+- Comentarios de código: en **español**
+
+## ESTRUCTURA DEL PROYECTO (Monorepo)
+```
+ferias-system/
+├── app/                    ← Laravel backend
+│   ├── Http/Controllers/Api/
+│   ├── Http/Middleware/
+│   ├── Http/Requests/
+│   ├── Models/
+│   ├── Services/
+│   ├── Enums/
+│   └── Policies/
+├── database/migrations/
+├── database/seeders/
+├── routes/api.php
+├── resources/views/pdf/    ← Blade templates para tiquetes POS
+├── frontend/               ← React SPA
+│   └── src/
+│       ├── components/ui/       ← shadcn/ui (no modificar)
+│       ├── components/layout/   ← Sidebar, TopBar, AppLayout
+│       ├── components/shared/   ← Componentes reutilizables
+│       ├── pages/               ← Páginas por módulo
+│       ├── hooks/               ← Custom hooks (TanStack Query)
+│       ├── services/            ← API client + service functions
+│       ├── stores/              ← Zustand stores
+│       ├── lib/                 ← Utilidades
+│       └── types/               ← TypeScript interfaces
+└── PROJECT_CONTEXT.md
+```
+
+## CONVENCIONES DE NOMBRADO
+
+### Laravel (Backend)
+- Modelos: PascalCase, singular, español → `Factura`, `Participante`
+- Tablas: snake_case, plural, español → `facturas`, `participantes`
+- Controllers: PascalCase + Controller → `FacturaController`
+- Form Requests: Store/Update + Modelo + Request → `StoreFacturaRequest`
+- Services: PascalCase + Service → `FacturacionService`
+- Enums: PascalCase → `EstadoFactura`
+- Migraciones: snake_case → `create_facturas_table`
+- Rutas API: kebab-case, plural → `/api/v1/facturas`
+
+### React (Frontend)
+- Componentes: PascalCase → `FacturaForm.tsx`
+- Páginas: PascalCase + Page → `FacturacionListPage.tsx`
+- Hooks: camelCase con use → `useFacturas.ts`
+- Services: camelCase + Service → `facturaService.ts`
+- Stores: camelCase + Store → `feriaStore.ts`
+- Types: PascalCase con I → `IFactura`
+- Archivos: camelCase para servicios/hooks/stores, PascalCase para componentes/páginas
+
+## REGLAS DE CÓDIGO — LARAVEL
+
+### Controllers
+- Controllers delgados. La lógica de negocio va en Services.
+- Patrón: Controller → FormRequest → Service → Model
+- Siempre usar API Resources para las respuestas JSON.
+- Siempre retornar respuestas JSON consistentes.
+
+### Modelos
+- Siempre definir $fillable (nunca $guarded = []).
+- Siempre definir $casts para fechas, booleans, decimals y enums.
+- Usar SoftDeletes en modelos que lo requieran (ver PROJECT_CONTEXT.md).
+- Definir todas las relaciones (belongsTo, hasMany, belongsToMany).
+- Crear scopes útiles para filtros frecuentes.
+
+### Migraciones
+- Siempre definir foreign keys con ->constrained().
+- Siempre crear índices en columnas de búsqueda y filtro.
+- Siempre crear unique constraints donde se requiera.
+- Respetar el orden de migraciones del PROJECT_CONTEXT.md.
+
+### Validación
+- Siempre usar Form Requests (nunca validar en el controller).
+- Mensajes de validación en español.
+- Validaciones estrictas: unique, exists, in, required_if, etc.
+
+### API
+- Prefijo: /api/v1
+- Autenticación: middleware auth:sanctum
+- Feria activa: middleware feria.selected + header X-Feria-Id
+- Permisos: middleware permission:modulo.accion
+- Paginación: usar ->paginate() de Laravel (default 15)
+- Búsqueda: parámetro ?search= con ILIKE en PostgreSQL
+- Filtros: query params específicos por recurso
+- Ordenamiento: ?sort= y ?direction=
+
+### Servicios
+- Transacciones atómicas para operaciones críticas (DB::transaction + lockForUpdate).
+- El ConsecutivoService SIEMPRE usa lock para evitar duplicados.
+- Snapshots de datos (precio, descripción) al crear detalles de factura.
+
+## REGLAS DE CÓDIGO — REACT
+
+### General
+- Siempre usar TypeScript con tipos estrictos. No usar `any`.
+- Siempre definir interfaces para props de componentes.
+- Usar import alias @ para imports (configurado en vite.config.ts).
+- No crear componentes de UI desde cero. Usar shadcn/ui.
+
+### Componentes
+- Componentes funcionales con hooks. No class components.
+- Props tipadas con interfaces.
+- Desestructurar props.
+- Un componente por archivo.
+
+### Estado del Servidor (TanStack Query)
+- Cada recurso del API tiene su hook: useFacturas, useParticipantes, etc.
+- Usar queryKey descriptivos: ['facturas', { filters }]
+- Usar useMutation para crear/editar/eliminar.
+- Invalidar queries después de mutaciones exitosas.
+
+### Estado del Cliente (Zustand)
+- authStore: usuario, roles, permisos, isAuthenticated.
+- feriaStore: feria activa.
+- No usar Zustand para datos del servidor (eso es TanStack Query).
+
+### Formularios
+- Siempre usar React Hook Form + Zod.
+- Los schemas de Zod reflejan las validaciones del backend.
+- Mostrar errores de validación debajo de cada campo.
+- Loading state en botón submit.
+
+### API Client (Axios)
+- Interceptor request: agregar X-Feria-Id automáticamente.
+- Interceptor response: manejar 401 (→ login), 403 (toast), 422 (errores campo), 500 (toast).
+- Usar el baseURL /api/v1.
+
+### Routing
+- React Router v6 con createBrowserRouter.
+- ProtectedRoute: verificar auth + permisos.
+- Redirect a login si no autenticado.
+- Redirect a selector de feria si no hay feria activa.
+
+### UI/UX
+- Usar shadcn/ui para TODOS los componentes de UI.
+- Toast notifications con Sonner para feedback.
+- ConfirmDialog para acciones destructivas.
+- Loading skeletons en tablas mientras cargan.
+- Empty states cuando no hay datos.
+- Debounce 300ms en inputs de búsqueda.
+- Badges de estado con colores consistentes:
+  - Activo/Facturado: verde (bg-green-100 text-green-700)
+  - Borrador: amarillo (bg-yellow-100 text-yellow-700)
+  - Eliminado/Cancelado: rojo (bg-red-100 text-red-700)
+  - Inactivo: gris (bg-gray-100 text-gray-700)
+
+## REGLAS IMPORTANTES
+1. **Nunca borrar registros físicamente.** Usar soft deletes o cambios de estado.
+2. **Toda operación está contextualizada a la feria activa** del header X-Feria-Id.
+3. **Validar en ambos lados:** frontend (Zod) + backend (Form Request). La fuente de verdad es el backend.
+4. **Los consecutivos de factura son atómicos.** Siempre usar transacción con lock.
+5. **Los precios en factura_detalles son snapshots.** No referencias al precio actual.
+6. **Visibilidad por rol en facturación:** Admin→todo, Supervisor→feria, Facturador→solo sus registros, Inspector→lectura.
+7. **Los PDFs de tiquetes se almacenan para reimprimir.** No se generan al vuelo cada vez.
+8. **No hardcodear tarifas.** Usar la tabla configuraciones.
+
+## CUANDO NO SEPAS QUÉ HACER
+1. Consulta PROJECT_CONTEXT.md.
+2. Sigue las convenciones de Laravel y React.
+3. Pregunta antes de asumir.
+4. Prefiere la solución más simple que funcione.
+
+
+# ═══════════════════════════════════
+# FLUTTER APP (ferias_app/)
+# ═══════════════════════════════════
+
+# Ferias del Agricultor — Flutter App — Cursor Rules
+
+## CONTEXTO
+Antes de generar código, lee `FLUTTER_CONTEXT.md` (arquitectura Flutter) y `PROJECT_CONTEXT.md` (API, modelo de datos, reglas de negocio). Ambos están en la raíz del proyecto.
+
+## STACK
+- **Framework:** Flutter 3.x (última estable), solo Android
+- **Estado:** Provider (ChangeNotifierProvider)
+- **HTTP:** Dio con interceptores (token Bearer + X-Feria-Id)
+- **Routing:** GoRouter
+- **Storage local:** SharedPreferences (solo token y feria activa)
+- **Impresión:** sunmi_printer_plus (SUNMI V3) + pdf/printing (fallback)
+- **Gráficos:** fl_chart
+- **Idioma del código:** español (variables, clases, comentarios) excepto palabras reservadas de Dart/Flutter
+
+## ARQUITECTURA
+- Patrón: Provider + Services
+- Services: clases que hacen HTTP al API Laravel
+- Providers: ChangeNotifiers con estado reactivo
+- Screens: widgets que consumen Providers
+- Widgets: componentes reutilizables en lib/widgets/
+
+## CONVENCIONES
+- Archivos: snake_case (factura_service.dart)
+- Clases: PascalCase (FacturaService)
+- Variables/funciones: camelCase (getMisFacturas)
+- Modelos: PascalCase singular (Factura)
+- Screens: PascalCase + Screen (FacturacionListScreen)
+- Providers: PascalCase + Provider (FacturaProvider)
+
+## MODELOS
+- Siempre usar factory fromJson(Map<String, dynamic>)
+- Siempre convertir snake_case (JSON) a camelCase (Dart)
+- Nunca usar dynamic — tipar todo
+- Incluir toJson() cuando se necesite enviar al API
+
+## AUTENTICACIÓN
+- Se usa TOKEN API de Sanctum (NO cookies)
+- Al login, enviar device_name para que Sanctum genere token
+- Token se guarda en SharedPreferences
+- Dio interceptor agrega Authorization: Bearer {token}
+- Header X-Feria-Id se agrega automáticamente
+
+## API
+- Base URL configurable en lib/config/api_config.dart
+- Todos los endpoints están en PROJECT_CONTEXT.md sección 10
+- Respuestas paginadas: { data: [], meta: { current_page, last_page, total } }
+- Errores: manejar 401, 403, 422, 500 con SnackBars descriptivos
+
+## IMPRESIÓN
+- PrinterFactory.detect() al iniciar la app
+- Orden: SUNMI → PDF (fallback)
+- SUNMI: sunmi_printer_plus, rollo 58mm = 32 columnas
+- PDF: package pdf + printing con PdfPageFormat.roll80
+- Contrato abstracto PrinterService para ambos
+- FacturaTicketLayout: utilidad compartida para generar contenido de tickets
+- Siempre SunmiPrinter.cutPaper() al final de cada ticket
+
+## UI / UX
+- Material Design 3
+- Color primario: Color(0xFF2563EB)
+- Listados: ListView con pull-to-refresh + paginación
+- Formularios: scrolleables, botones fijos al fondo
+- FAB para acciones de crear
+- ConfirmDialog para acciones destructivas
+- SnackBars para feedback (éxito verde, error rojo)
+- StatusBadge con colores consistentes (verde/naranja/rojo/gris/azul)
+- ComboboxSearch para selección con búsqueda async
+- Diseñar para pantalla 5.5" (SUNMI V3)
+
+## REGLAS IMPORTANTES
+1. Toda operación está contextualizada a la feria activa (header X-Feria-Id).
+2. Los permisos filtran el menú del Drawer y las acciones visibles.
+3. Nunca cachear datos localmente. Todo se consulta al API en tiempo real.
+4. Al facturar: API genera consecutivo → app recibe respuesta → imprime ticket automáticamente.
+5. Parqueo debe ser ultra rápido: autofocus en placa, enviar con Enter.
+6. Visibilidad por rol: Admin→todo, Supervisor→feria, Facturador→solo sus registros, Inspector→lectura.
+7. Al cambiar de feria: recargar datos de la pantalla actual.
+8. Al cerrar sesión: limpiar token, feria, todos los providers.
+
+## CUANDO NO SEPAS QUÉ HACER
+1. Consulta FLUTTER_CONTEXT.md y PROJECT_CONTEXT.md.
+2. Sigue las convenciones de Flutter/Dart.
+3. Pregunta antes de asumir.
+4. Prefiere la solución más simple que funcione.
