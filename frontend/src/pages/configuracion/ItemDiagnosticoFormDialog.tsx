@@ -92,7 +92,7 @@ export function ItemDiagnosticoFormDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Editar item de diagnóstico' : 'Nuevo item de diagnóstico'}
+            {isEditing ? 'Editar item de inspección' : 'Nuevo item de inspección'}
           </DialogTitle>
         </DialogHeader>
 

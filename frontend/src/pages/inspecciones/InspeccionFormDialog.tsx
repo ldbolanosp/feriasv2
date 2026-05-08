@@ -224,7 +224,7 @@ export function InspeccionFormDialog({
 
             {itemsCatalogo.length === 0 && !itemsCatalogoLoading ? (
               <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                Primero debe crear items en Configuración → Items de Diagnóstico.
+                Primero debe crear items en Configuración → Items de Inspección.
               </div>
             ) : (
               <div className="space-y-3">

@@ -100,7 +100,7 @@ const navItems: NavItem[] = [
         permission: 'productos.ver',
       },
       {
-        label: 'Items de Diagnóstico',
+        label: 'Items de Inspección',
         to: '/configuracion/items-diagnostico',
         icon: <ClipboardCheck className="size-4" />,
         permission: 'configuracion.ver',

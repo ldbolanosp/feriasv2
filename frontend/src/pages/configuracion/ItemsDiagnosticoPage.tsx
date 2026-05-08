@@ -117,7 +117,7 @@ export function ItemsDiagnosticoPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Items de Diagnóstico"
+        title="Items de Inspección"
         description="Catálogo base de items que se podrán evaluar dentro de cada inspección."
         action={
           hasPermission('configuracion.editar')
@@ -187,7 +187,7 @@ export function ItemsDiagnosticoPage() {
             onSuccess: () => setDeleteTarget(null),
           })
         }}
-        title="Eliminar item de diagnóstico"
+        title="Eliminar item de inspección"
         description={`Se eliminará "${deleteTarget?.nombre ?? ''}" del catálogo. Las inspecciones ya guardadas conservarán el nombre histórico del item.`}
         confirmText="Eliminar"
         variant="destructive"

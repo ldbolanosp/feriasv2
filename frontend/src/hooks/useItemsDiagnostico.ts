@@ -27,14 +27,14 @@ export function useCreateItemDiagnostico() {
     mutationFn: (payload: IItemDiagnosticoFormPayload) => createItemDiagnostico(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ITEMS_DIAGNOSTICO_KEY] })
-      toast.success('Item de diagnóstico creado correctamente.')
+      toast.success('Item de inspección creado correctamente.')
     },
     onError: (error) => {
       if (isAxiosError(error) && error.response?.status === 422) {
         return
       }
 
-      toast.error('No se pudo crear el item de diagnóstico.')
+      toast.error('No se pudo crear el item de inspección.')
     },
   })
 }
@@ -48,14 +48,14 @@ export function useUpdateItemDiagnostico() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [ITEMS_DIAGNOSTICO_KEY] })
       queryClient.invalidateQueries({ queryKey: [ITEMS_DIAGNOSTICO_KEY, variables.id] })
-      toast.success('Item de diagnóstico actualizado correctamente.')
+      toast.success('Item de inspección actualizado correctamente.')
     },
     onError: (error) => {
       if (isAxiosError(error) && error.response?.status === 422) {
         return
       }
 
-      toast.error('No se pudo actualizar el item de diagnóstico.')
+      toast.error('No se pudo actualizar el item de inspección.')
     },
   })
 }
@@ -67,10 +67,10 @@ export function useDeleteItemDiagnostico() {
     mutationFn: (id: number) => deleteItemDiagnostico(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ITEMS_DIAGNOSTICO_KEY] })
-      toast.success('Item de diagnóstico eliminado correctamente.')
+      toast.success('Item de inspección eliminado correctamente.')
     },
     onError: () => {
-      toast.error('No se pudo eliminar el item de diagnóstico.')
+      toast.error('No se pudo eliminar el item de inspección.')
     },
   })
 }
