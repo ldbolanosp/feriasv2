@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             FeriaInicialSeeder::class,
             AdminUserSeeder::class,
             ConfiguracionesSeeder::class,
+            MetodoPagoSeeder::class,
         ]);
 
         if (app()->isLocal()) {

@@ -244,6 +244,10 @@
             <table class="totals">
                 @if($factura->monto_pago !== null)
                     <tr>
+                        <td class="label">Método</td>
+                        <td class="value">{{ $factura->metodoPago?->nombre ?? 'No definido' }}</td>
+                    </tr>
+                    <tr>
                         <td class="label">Pago</td>
                         <td class="value">CRC {{ number_format((float) $factura->monto_pago, 2) }}</td>
                     </tr>

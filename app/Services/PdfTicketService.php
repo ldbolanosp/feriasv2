@@ -13,7 +13,7 @@ class PdfTicketService
 {
     public function generarTicketFactura(Factura $factura): string
     {
-        $factura->loadMissing(['feria', 'usuario', 'participante', 'detalles.producto']);
+        $factura->loadMissing(['feria', 'usuario', 'participante', 'metodoPago', 'detalles.producto']);
 
         return $this->renderAndStore(
             'pdf.ticket-factura',

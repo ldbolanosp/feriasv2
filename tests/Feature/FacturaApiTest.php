@@ -4,6 +4,7 @@ use App\Enums\EstadoFactura;
 use App\Models\ConsecutivoFeria;
 use App\Models\Factura;
 use App\Models\Feria;
+use App\Models\MetodoPago;
 use App\Models\Participante;
 use App\Models\Producto;
 use App\Models\ProductoPrecio;
@@ -134,7 +135,28 @@ it('creates a draft invoice through the api', function (): void {
         ->assertJsonPath('data.user_id', $usuario->id)
         ->assertJsonPath('data.estado', 'borrador')
         ->assertJsonPath('data.subtotal', '1250.00')
+        ->assertJsonPath('data.metodo_pago.nombre', 'Efectivo')
         ->assertJsonPath('data.detalles.0.producto_id', $producto->id);
+});
+
+it('stores the selected payment method on the invoice', function (): void {
+    $feria = facturaFeria();
+    authenticateForFacturas('supervisor', ['facturas.crear'], $feria);
+    $participante = participanteEnFeria($feria);
+    $producto = productoEnFeria($feria, 1250);
+    $metodoPago = MetodoPago::query()->where('nombre', 'SINPE')->firstOrFail();
+
+    postJson('/api/v1/facturas', [
+        'participante_id' => $participante->id,
+        'metodo_pago_id' => $metodoPago->id,
+        'monto_pago' => 2000,
+        'detalles' => [
+            ['producto_id' => $producto->id, 'cantidad' => 1],
+        ],
+    ], ['X-Feria-Id' => (string) $feria->id])
+        ->assertCreated()
+        ->assertJsonPath('data.metodo_pago_id', $metodoPago->id)
+        ->assertJsonPath('data.metodo_pago.nombre', 'SINPE');
 });
 
 it('issues an invoice and allows reprint and pdf download', function (): void {

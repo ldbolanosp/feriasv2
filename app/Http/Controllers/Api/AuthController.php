@@ -11,6 +11,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\PersonalAccessToken;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
@@ -118,6 +120,13 @@ class AuthController extends Controller
      */
     private function buildUserPayload(User $user, ?string $token = null): array
     {
+        if ($user->hasRole('administrador')) {
+            $permissions = Permission::query()->orderBy('name')->pluck('name');
+            Role::findOrCreate('administrador', 'web')->syncPermissions($permissions->all());
+        } else {
+            $permissions = $user->getAllPermissions()->pluck('name');
+        }
+
         $payload = [
             'user' => [
                 'id' => $user->id,
@@ -126,7 +135,7 @@ class AuthController extends Controller
                 'activo' => $user->activo,
             ],
             'roles' => $user->getRoleNames(),
-            'permisos' => $user->getAllPermissions()->pluck('name'),
+            'permisos' => $permissions,
             'ferias' => $user->ferias()->where('activa', true)->get(['ferias.id', 'ferias.codigo', 'ferias.descripcion', 'ferias.facturacion_publico']),
         ];
 

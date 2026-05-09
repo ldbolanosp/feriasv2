@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePermission } from '@/hooks/usePermission'
 import {
   useCreateUsuario,
@@ -30,6 +31,7 @@ import {
   useUpdateUsuario,
   useUsuarios,
 } from '@/hooks/useUsuarios'
+import { useAuthStore } from '@/stores/authStore'
 import {
   etiquetaRolUsuario,
   ROLES_USUARIO,
@@ -37,6 +39,7 @@ import {
   type IUsuarioFormPayload,
   type TRolUsuario,
 } from '@/types/usuario'
+import { RolesTab } from './RolesTab'
 import { SesionesDialog } from './SesionesDialog'
 import { UsuarioFormDialog } from './UsuarioFormDialog'
 
@@ -57,11 +60,14 @@ function roleBadgeVariant(role: string | null): 'default' | 'secondary' | 'outli
 
 export function UsuariosPage() {
   const { hasPermission } = usePermission()
+  const roles = useAuthStore((state) => state.roles)
+  const canManageRoles = roles.includes('administrador')
 
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('todos')
   const [rolFiltro, setRolFiltro] = useState<RolFiltro>('todos')
+  const [activeTab, setActiveTab] = useState<'usuarios' | 'roles'>('usuarios')
   const [sorting, setSorting] = useState<SortingState>([])
   const [formOpen, setFormOpen] = useState(false)
   const [sesionesOpen, setSesionesOpen] = useState(false)
@@ -269,10 +275,10 @@ export function UsuariosPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Usuarios"
-        description="Administre los accesos al sistema, sus roles y las ferias asignadas."
+        title="Usuarios y roles"
+        description="Administre cuentas, ferias asignadas y permisos por rol desde una sola vista."
         action={
-          hasPermission('usuarios.crear')
+          activeTab === 'usuarios' && hasPermission('usuarios.crear')
             ? {
                 label: 'Nuevo usuario',
                 icon: Plus,
@@ -282,53 +288,118 @@ export function UsuariosPage() {
         }
       />
 
-      <div className="space-y-3">
-        <FilterBar>
-          <SearchInput
-            value={search}
-            onChange={handleSearchChange}
-            placeholder="Buscar por nombre o correo..."
-            className="w-full sm:w-72"
-          />
-          <Select value={estadoFiltro} onValueChange={handleEstadoChange}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="activos">Activos</SelectItem>
-              <SelectItem value="inactivos">Inactivos</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={rolFiltro} onValueChange={handleRolChange}>
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue placeholder="Rol" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los roles</SelectItem>
-              {ROLES_USUARIO.map((rol) => (
-                <SelectItem key={rol} value={rol}>
-                  {etiquetaRolUsuario(rol)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterBar>
+      {canManageRoles ? (
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'usuarios' | 'roles')}>
+          <TabsList className="rounded-full bg-muted/70 p-1">
+            <TabsTrigger value="usuarios" className="rounded-full px-4">
+              Usuarios
+            </TabsTrigger>
+            <TabsTrigger value="roles" className="rounded-full px-4">
+              Roles
+            </TabsTrigger>
+          </TabsList>
 
-        <DataTable
-          columns={columns}
-          data={usuarios}
-          isLoading={isLoading}
-          isFetching={isFetching}
-          pagination={{
-            page: meta.current_page,
-            pageSize: meta.per_page,
-            total: meta.total,
-          }}
-          onPaginationChange={setPage}
-          onSortChange={handleSortingChange}
-        />
-      </div>
+          <TabsContent value="usuarios" className="space-y-3">
+            <FilterBar>
+              <SearchInput
+                value={search}
+                onChange={handleSearchChange}
+                placeholder="Buscar por nombre o correo..."
+                className="w-full sm:w-72"
+              />
+              <Select value={estadoFiltro} onValueChange={handleEstadoChange}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="activos">Activos</SelectItem>
+                  <SelectItem value="inactivos">Inactivos</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={rolFiltro} onValueChange={handleRolChange}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <SelectValue placeholder="Rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los roles</SelectItem>
+                  {ROLES_USUARIO.map((rol) => (
+                    <SelectItem key={rol} value={rol}>
+                      {etiquetaRolUsuario(rol)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterBar>
+
+            <DataTable
+              columns={columns}
+              data={usuarios}
+              isLoading={isLoading}
+              isFetching={isFetching}
+              pagination={{
+                page: meta.current_page,
+                pageSize: meta.per_page,
+                total: meta.total,
+              }}
+              onPaginationChange={setPage}
+              onSortChange={handleSortingChange}
+            />
+          </TabsContent>
+
+          <TabsContent value="roles">
+            <RolesTab />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="space-y-3">
+          <FilterBar>
+            <SearchInput
+              value={search}
+              onChange={handleSearchChange}
+              placeholder="Buscar por nombre o correo..."
+              className="w-full sm:w-72"
+            />
+            <Select value={estadoFiltro} onValueChange={handleEstadoChange}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="activos">Activos</SelectItem>
+                <SelectItem value="inactivos">Inactivos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={rolFiltro} onValueChange={handleRolChange}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="Rol" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los roles</SelectItem>
+                {ROLES_USUARIO.map((rol) => (
+                  <SelectItem key={rol} value={rol}>
+                    {etiquetaRolUsuario(rol)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterBar>
+
+          <DataTable
+            columns={columns}
+            data={usuarios}
+            isLoading={isLoading}
+            isFetching={isFetching}
+            pagination={{
+              page: meta.current_page,
+              pageSize: meta.per_page,
+              total: meta.total,
+            }}
+            onPaginationChange={setPage}
+            onSortChange={handleSortingChange}
+          />
+        </div>
+      )}
 
       <UsuarioFormDialog
         open={formOpen}

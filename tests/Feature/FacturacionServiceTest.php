@@ -12,6 +12,7 @@ use App\Services\ConsecutivoService;
 use App\Services\FacturacionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -70,6 +71,7 @@ it('creates a draft invoice with calculated totals and snapshots', function (): 
     ], $feria->id, $usuario->id);
 
     expect($factura->estado)->toBe(EstadoFactura::Borrador);
+    expect($factura->metodoPago?->nombre)->toBe('Efectivo');
     expect($factura->subtotal)->toBe('2300.00');
     expect($factura->monto_cambio)->toBe('700.00');
     expect($factura->detalles)->toHaveCount(2);
@@ -136,4 +138,4 @@ it('rejects a participant that does not belong to the selected fair', function (
             ['producto_id' => $producto->id, 'cantidad' => 1],
         ],
     ], $feria->id, $usuario->id);
-})->throws(Illuminate\Validation\ValidationException::class);
+})->throws(ValidationException::class);

@@ -28,11 +28,19 @@ import {
 } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreateFactura, useFactura, useFacturarFactura, useUpdateFactura } from '@/hooks/useFacturas'
+import { useMetodosPagoCatalogoFacturacion } from '@/hooks/useMetodosPago'
 import { useParticipantesPorFeria } from '@/hooks/useParticipantes'
 import { useProductosPorFeria } from '@/hooks/useProductos'
 import { openFacturaPdf } from '@/services/facturaService'
 import { useFeriaStore } from '@/stores/feriaStore'
 import type { IFacturaFormPayload } from '@/types/factura'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const schema = z.object({
   es_publico_general: z.boolean(),
@@ -40,6 +48,7 @@ const schema = z.object({
   participante_id: z.number().nullable(),
   tipo_puesto: z.string(),
   numero_puesto: z.string(),
+  metodo_pago_id: z.number().nullable(),
   monto_pago: z.number().nullable(),
   observaciones: z.string(),
 })
@@ -60,6 +69,7 @@ const defaultValues: FacturaFormValues = {
   participante_id: null,
   tipo_puesto: '',
   numero_puesto: '',
+  metodo_pago_id: null,
   monto_pago: null,
   observaciones: '',
 }
@@ -76,6 +86,7 @@ function toPayload(values: FacturaFormValues, detalles: DetalleLocal[]): IFactur
     participante_id: values.es_publico_general ? null : values.participante_id,
     tipo_puesto: nullableTrimmed(values.tipo_puesto),
     numero_puesto: nullableTrimmed(values.numero_puesto),
+    metodo_pago_id: values.metodo_pago_id,
     monto_pago: values.monto_pago,
     observaciones: nullableTrimmed(values.observaciones),
     detalles: detalles.map((detalle) => ({
@@ -117,6 +128,7 @@ export function FacturacionFormPage() {
     useParticipantesPorFeria(participanteSearch)
   const { data: productos = [], isFetching: isFetchingProductos } =
     useProductosPorFeria(detalleSearch)
+  const { data: metodosPago = [] } = useMetodosPagoCatalogoFacturacion()
 
   const createFacturaMutation = useCreateFactura()
   const updateFacturaMutation = useUpdateFactura()
@@ -138,6 +150,7 @@ export function FacturacionFormPage() {
 
   const esPublicoGeneral = watch('es_publico_general')
   const participanteId = watch('participante_id')
+  const metodoPagoId = watch('metodo_pago_id')
   const montoPago = watch('monto_pago')
 
   const total = useMemo(
@@ -182,6 +195,18 @@ export function FacturacionFormPage() {
   }, [esPublicoGeneral, feriaActiva?.facturacion_publico, setValue])
 
   useEffect(() => {
+    if (metodoPagoId !== null) {
+      return
+    }
+
+    const metodoPagoEfectivo = metodosPago.find((metodoPago) => metodoPago.nombre === 'Efectivo')
+
+    if (metodoPagoEfectivo) {
+      setValue('metodo_pago_id', metodoPagoEfectivo.id, { shouldDirty: false })
+    }
+  }, [metodoPagoId, metodosPago, setValue])
+
+  useEffect(() => {
     if (!isEditing || !factura) {
       return
     }
@@ -192,6 +217,7 @@ export function FacturacionFormPage() {
       participante_id: factura.participante_id,
       tipo_puesto: factura.tipo_puesto ?? '',
       numero_puesto: factura.numero_puesto ?? '',
+      metodo_pago_id: factura.metodo_pago_id,
       monto_pago: normalizeNumber(factura.monto_pago),
       observaciones: factura.observaciones ?? '',
     })
@@ -618,6 +644,30 @@ export function FacturacionFormPage() {
                       <span className="text-lg font-semibold">₡{total.toFixed(2)}</span>
                     </div>
                     <Separator />
+                    <FormField label="Método de pago" error={errors.metodo_pago_id?.message}>
+                      <Select
+                        value={metodoPagoId ? String(metodoPagoId) : undefined}
+                        onValueChange={(value) =>
+                          setValue('metodo_pago_id', Number(value), {
+                            shouldDirty: true,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione un método de pago" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {metodosPago
+                            .filter((metodoPago) => metodoPago.activo || metodoPago.id === metodoPagoId)
+                            .map((metodoPago) => (
+                              <SelectItem key={metodoPago.id} value={String(metodoPago.id)}>
+                                {metodoPago.nombre}
+                                {!metodoPago.activo ? ' (Inactivo)' : ''}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </FormField>
                     <FormField label="Monto de pago" error={errors.monto_pago?.message}>
                       <MoneyInput
                         value={montoPago}

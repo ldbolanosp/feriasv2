@@ -21,8 +21,7 @@ class FacturaController extends Controller
     public function __construct(
         public FacturacionService $facturacionService,
         public PdfTicketService $pdfTicketService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -30,7 +29,7 @@ class FacturaController extends Controller
         $feriaId = (int) $request->header('X-Feria-Id');
 
         $query = Factura::query()
-            ->with(['feria', 'participante', 'usuario', 'detalles.producto'])
+            ->with(['feria', 'participante', 'usuario', 'metodoPago', 'detalles.producto'])
             ->withCount('detalles');
 
         if ($user->hasRole('administrador')) {
@@ -89,7 +88,7 @@ class FacturaController extends Controller
     {
         $this->authorizeFacturaAccess($request, $factura, false);
 
-        return new FacturaResource($factura->load(['feria', 'participante', 'usuario', 'detalles.producto']));
+        return new FacturaResource($factura->load(['feria', 'participante', 'usuario', 'metodoPago', 'detalles.producto']));
     }
 
     public function update(UpdateFacturaRequest $request, Factura $factura): FacturaResource
@@ -144,12 +143,12 @@ class FacturaController extends Controller
         }
 
         $pdfPath = $this->pdfTicketService->generarTicketFactura(
-            $factura->load(['feria', 'participante', 'usuario', 'detalles.producto'])
+            $factura->load(['feria', 'participante', 'usuario', 'metodoPago', 'detalles.producto'])
         );
 
         $factura->update(['pdf_path' => $pdfPath]);
 
-        return new FacturaResource($factura->fresh(['feria', 'participante', 'usuario', 'detalles.producto']));
+        return new FacturaResource($factura->fresh(['feria', 'participante', 'usuario', 'metodoPago', 'detalles.producto']));
     }
 
     private function authorizeFacturaAccess(Request $request, Factura $factura, bool $forWrite): void

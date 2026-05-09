@@ -17,6 +17,7 @@ class FacturaResource extends JsonResource
             'feria_id' => $this->feria_id,
             'participante_id' => $this->participante_id,
             'user_id' => $this->user_id,
+            'metodo_pago_id' => $this->metodo_pago_id,
             'consecutivo' => $this->consecutivo,
             'es_publico_general' => $this->es_publico_general,
             'nombre_publico' => $this->nombre_publico,
@@ -46,6 +47,11 @@ class FacturaResource extends JsonResource
                 'id' => $this->usuario->id,
                 'name' => $this->usuario->name,
                 'email' => $this->usuario->email,
+            ] : null),
+            'metodo_pago' => $this->whenLoaded('metodoPago', fn (): ?array => $this->metodoPago ? [
+                'id' => $this->metodoPago->id,
+                'nombre' => $this->metodoPago->nombre,
+                'activo' => $this->metodoPago->activo,
             ] : null),
             'detalles' => $this->whenLoaded('detalles', function (): array {
                 return $this->detalles->map(function ($detalle): array {

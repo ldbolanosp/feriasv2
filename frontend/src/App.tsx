@@ -6,6 +6,7 @@ import { LoginPage } from '@/pages/auth/LoginPage'
 import { SeleccionFeriaPage } from '@/pages/auth/SeleccionFeriaPage'
 import { ConfiguracionPage } from '@/pages/configuracion/ConfiguracionPage'
 import { ItemsDiagnosticoPage } from '@/pages/configuracion/ItemsDiagnosticoPage'
+import { MetodosPagoPage } from '@/pages/configuracion/MetodosPagoPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { FacturaDetallePage } from '@/pages/facturacion/FacturaDetallePage'
 import { FacturacionListPage } from '@/pages/facturacion/FacturacionListPage'
@@ -163,6 +164,14 @@ export default function App() {
               element={
                 <ProtectedRoute permission="configuracion.ver">
                   <ItemsDiagnosticoPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/configuracion/metodos-pago"
+              element={
+                <ProtectedRoute permission="configuracion.ver">
+                  <MetodosPagoPage />
                 </ProtectedRoute>
               }
             />

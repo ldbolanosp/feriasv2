@@ -56,10 +56,11 @@ function syncFeriaStore(feriaActualizada: IFeria): void {
   setFerias(feriasActualizadas)
 }
 
-export function useFerias(params: FeriaListParams = {}) {
+export function useFerias(params: FeriaListParams = {}, enabled = true) {
   return useQuery({
     queryKey: [FERIAS_KEY, params],
     queryFn: () => getFerias(params),
+    enabled,
     placeholderData: keepPreviousData,
   })
 }

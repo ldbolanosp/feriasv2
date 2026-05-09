@@ -114,6 +114,10 @@ export function FacturaDetallePage() {
               <span>{formatMoney(factura.subtotal)}</span>
             </div>
             <div className="flex items-center justify-between gap-4">
+              <span className="text-muted-foreground">Método de pago</span>
+              <span>{factura.metodo_pago?.nombre ?? 'No definido'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
               <span className="text-muted-foreground">Pago recibido</span>
               <span>{formatMoney(factura.monto_pago)}</span>
             </div>

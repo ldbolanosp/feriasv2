@@ -70,10 +70,13 @@ export function FacturacionListPage() {
   const sort = sorting[0]?.id
   const direction = sorting[0]?.desc ? 'desc' : 'asc'
 
-  const { data: feriasData } = useFerias({
-    page: 1,
-    per_page: 100,
-  })
+  const { data: feriasData } = useFerias(
+    {
+      page: 1,
+      per_page: 100,
+    },
+    isAdmin,
+  )
 
   const { data, isLoading, isFetching } = useFacturas({
     page,

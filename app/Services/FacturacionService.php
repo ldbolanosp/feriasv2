@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Enums\EstadoFactura;
 use App\Models\Factura;
-use App\Models\FacturaDetalle;
+use App\Models\MetodoPago;
 use App\Models\Participante;
 use App\Models\ProductoPrecio;
 use Illuminate\Support\Collection;
@@ -16,8 +16,7 @@ class FacturacionService
     public function __construct(
         public ConsecutivoService $consecutivoService,
         public PdfTicketService $pdfTicketService,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data
@@ -31,6 +30,7 @@ class FacturacionService
                 'feria_id' => $feriaId,
                 'participante_id' => $payload['participante_id'],
                 'user_id' => $userId,
+                'metodo_pago_id' => $payload['metodo_pago_id'],
                 'es_publico_general' => $payload['es_publico_general'],
                 'nombre_publico' => $payload['nombre_publico'],
                 'tipo_puesto' => $payload['tipo_puesto'],
@@ -44,7 +44,7 @@ class FacturacionService
 
             $this->crearDetalles($factura, $payload['detalles']);
 
-            return $factura->load(['detalles.producto', 'participante', 'feria', 'usuario']);
+            return $factura->load(['detalles.producto', 'participante', 'feria', 'usuario', 'metodoPago']);
         });
     }
 
@@ -60,6 +60,7 @@ class FacturacionService
         return DB::transaction(function () use ($factura, $payload): Factura {
             $factura->update([
                 'participante_id' => $payload['participante_id'],
+                'metodo_pago_id' => $payload['metodo_pago_id'],
                 'es_publico_general' => $payload['es_publico_general'],
                 'nombre_publico' => $payload['nombre_publico'],
                 'tipo_puesto' => $payload['tipo_puesto'],
@@ -73,7 +74,7 @@ class FacturacionService
             $factura->detalles()->delete();
             $this->crearDetalles($factura, $payload['detalles']);
 
-            return $factura->load(['detalles.producto', 'participante', 'feria', 'usuario']);
+            return $factura->load(['detalles.producto', 'participante', 'feria', 'usuario', 'metodoPago']);
         });
     }
 
@@ -91,13 +92,13 @@ class FacturacionService
                 'fecha_emision' => now(),
             ]);
 
-            return $factura->load(['detalles.producto', 'participante', 'feria', 'usuario']);
+            return $factura->load(['detalles.producto', 'participante', 'feria', 'usuario', 'metodoPago']);
         });
 
         $pdfPath = $this->pdfTicketService->generarTicketFactura($factura);
         $factura->forceFill(['pdf_path' => $pdfPath])->save();
 
-        return $factura->fresh(['detalles.producto', 'participante', 'feria', 'usuario']);
+        return $factura->fresh(['detalles.producto', 'participante', 'feria', 'usuario', 'metodoPago']);
     }
 
     public function eliminar(Factura $factura): void
@@ -113,6 +114,7 @@ class FacturacionService
      * @param  array<string, mixed>  $data
      * @return array{
      *     participante_id:int|null,
+     *     metodo_pago_id:int,
      *     es_publico_general:bool,
      *     nombre_publico:string|null,
      *     tipo_puesto:string|null,
@@ -170,9 +172,11 @@ class FacturacionService
         $montoPagoNormalizado = $montoPago !== null && $montoPago !== ''
             ? $this->asMoney($montoPago)
             : null;
+        $metodoPagoId = $this->resolveMetodoPagoId($data['metodo_pago_id'] ?? null);
 
         return [
             'participante_id' => $participanteId,
+            'metodo_pago_id' => $metodoPagoId,
             'es_publico_general' => $esPublicoGeneral,
             'nombre_publico' => $esPublicoGeneral ? $nombrePublico : null,
             'tipo_puesto' => $this->nullableString($data['tipo_puesto'] ?? null),
@@ -186,7 +190,6 @@ class FacturacionService
     }
 
     /**
-     * @param  mixed  $detalles
      * @return array<int, array{
      *     producto_id:int,
      *     descripcion_producto:string,
@@ -306,5 +309,32 @@ class FacturacionService
         $text = trim((string) $value);
 
         return $text === '' ? null : $text;
+    }
+
+    private function resolveMetodoPagoId(mixed $metodoPagoId): int
+    {
+        if ($metodoPagoId !== null && $metodoPagoId !== '') {
+            $metodoPago = MetodoPago::query()
+                ->whereKey((int) $metodoPagoId)
+                ->where('activo', true)
+                ->first();
+
+            if ($metodoPago !== null) {
+                return $metodoPago->id;
+            }
+        }
+
+        $efectivo = MetodoPago::query()
+            ->where('nombre', 'Efectivo')
+            ->where('activo', true)
+            ->first();
+
+        if ($efectivo === null) {
+            throw ValidationException::withMessages([
+                'metodo_pago_id' => 'No existe un método de pago Efectivo activo para usar como predeterminado.',
+            ]);
+        }
+
+        return $efectivo->id;
     }
 }

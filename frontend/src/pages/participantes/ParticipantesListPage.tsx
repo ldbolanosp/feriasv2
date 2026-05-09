@@ -66,6 +66,7 @@ function getInfoVencimientoCarne(fecha: string | null | undefined): {
 export function ParticipantesListPage() {
   const navigate = useNavigate()
   const { hasPermission } = usePermission()
+  const canViewFerias = hasPermission('ferias.ver')
 
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -76,7 +77,7 @@ export function ParticipantesListPage() {
   const activoParam =
     estadoFiltro === 'activos' ? true : estadoFiltro === 'inactivos' ? false : null
 
-  const { data: feriasData } = useFerias({ per_page: 100, page: 1 })
+  const { data: feriasData } = useFerias({ per_page: 100, page: 1 }, canViewFerias)
   const feriasOpciones = feriasData?.data ?? []
 
   const { data, isLoading, isFetching } = useParticipantes({
@@ -86,7 +87,7 @@ export function ParticipantesListPage() {
     activo: activoParam,
     tipo_identificacion:
       tipoIdentificacionFiltro !== 'todos' ? tipoIdentificacionFiltro : undefined,
-    feria_id: feriaFiltro !== 'todas' ? Number(feriaFiltro) : undefined,
+    feria_id: canViewFerias && feriaFiltro !== 'todas' ? Number(feriaFiltro) : undefined,
   })
 
   const toggleMutation = useToggleParticipante()
@@ -267,19 +268,21 @@ export function ParticipantesListPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={feriaFiltro} onValueChange={handleFeriaChange}>
-            <SelectTrigger className="w-full sm:w-56">
-              <SelectValue placeholder="Feria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas las ferias</SelectItem>
-              {feriasOpciones.map((f) => (
-                <SelectItem key={f.id} value={String(f.id)}>
-                  {f.codigo} — {f.descripcion}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {canViewFerias && (
+            <Select value={feriaFiltro} onValueChange={handleFeriaChange}>
+              <SelectTrigger className="w-full sm:w-56">
+                <SelectValue placeholder="Feria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas las ferias</SelectItem>
+                {feriasOpciones.map((f) => (
+                  <SelectItem key={f.id} value={String(f.id)}>
+                    {f.codigo} — {f.descripcion}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </FilterBar>
 
         <DataTable

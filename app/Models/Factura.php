@@ -19,6 +19,7 @@ class Factura extends Model
         'feria_id',
         'participante_id',
         'user_id',
+        'metodo_pago_id',
         'consecutivo',
         'es_publico_general',
         'nombre_publico',
@@ -61,6 +62,11 @@ class Factura extends Model
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function metodoPago(): BelongsTo
+    {
+        return $this->belongsTo(MetodoPago::class);
     }
 
     public function detalles(): HasMany

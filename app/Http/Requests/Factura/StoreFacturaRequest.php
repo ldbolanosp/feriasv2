@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Factura;
 
+use App\Models\MetodoPago;
 use App\Models\Participante;
 use App\Models\ProductoPrecio;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -26,6 +27,7 @@ class StoreFacturaRequest extends FormRequest
             'participante_id' => ['nullable', 'integer', 'exists:participantes,id'],
             'tipo_puesto' => ['nullable', 'string', 'max:100'],
             'numero_puesto' => ['nullable', 'string', 'max:50'],
+            'metodo_pago_id' => ['nullable', 'integer', 'exists:metodo_pagos,id'],
             'monto_pago' => ['nullable', 'numeric', 'min:0', 'decimal:0,2'],
             'observaciones' => ['nullable', 'string'],
             'detalles' => ['required', 'array', 'min:1'],
@@ -44,6 +46,7 @@ class StoreFacturaRequest extends FormRequest
             'participante_id.exists' => 'El participante seleccionado no existe.',
             'tipo_puesto.max' => 'El tipo de puesto no puede exceder 100 caracteres.',
             'numero_puesto.max' => 'El número de puesto no puede exceder 50 caracteres.',
+            'metodo_pago_id.exists' => 'El método de pago seleccionado no existe.',
             'monto_pago.numeric' => 'El monto de pago debe ser numérico.',
             'monto_pago.min' => 'El monto de pago no puede ser negativo.',
             'monto_pago.decimal' => 'El monto de pago solo puede tener hasta 2 decimales.',
@@ -104,6 +107,12 @@ class StoreFacturaRequest extends FormRequest
                     $validator->errors()->add("detalles.{$index}.producto_id", 'El producto no tiene precio configurado en la feria seleccionada.');
                 }
             });
+
+            $metodoPagoId = $this->input('metodo_pago_id');
+
+            if ($metodoPagoId !== null && ! MetodoPago::query()->whereKey((int) $metodoPagoId)->where('activo', true)->exists()) {
+                $validator->errors()->add('metodo_pago_id', 'Debe seleccionar un método de pago activo.');
+            }
         });
     }
 }

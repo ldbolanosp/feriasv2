@@ -13,6 +13,7 @@ import {
   Users,
   Package,
   UserCog,
+  CreditCard,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -106,7 +107,13 @@ const navItems: NavItem[] = [
         permission: 'configuracion.ver',
       },
       {
-        label: 'Usuarios',
+        label: 'Métodos de pago',
+        to: '/configuracion/metodos-pago',
+        icon: <CreditCard className="size-4" />,
+        permission: 'configuracion.ver',
+      },
+      {
+        label: 'Usuarios y roles',
         to: '/configuracion/usuarios',
         icon: <UserCog className="size-4" />,
         permission: 'usuarios.ver',

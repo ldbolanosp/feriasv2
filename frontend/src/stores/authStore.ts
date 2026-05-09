@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       setLoading: (isLoading) => set({ isLoading }),
 
-      hasPermission: (permiso) => get().permisos.includes(permiso),
+      hasPermission: (permiso) => get().roles.includes('administrador') || get().permisos.includes(permiso),
     }),
     {
       name: 'auth-storage',

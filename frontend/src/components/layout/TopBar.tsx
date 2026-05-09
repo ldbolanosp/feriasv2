@@ -25,14 +25,16 @@ const pageTitles: Record<string, string> = {
   '/configuracion/ferias': 'Ferias',
   '/configuracion/participantes': 'Participantes',
   '/configuracion/productos': 'Productos',
-  '/configuracion/usuarios': 'Usuarios',
+  '/configuracion/metodos-pago': 'Métodos de pago',
+  '/configuracion/usuarios': 'Usuarios y roles',
 }
 
 function getPageTitle(pathname: string): string {
-  for (const [path, title] of Object.entries(pageTitles)) {
-    if (pathname.startsWith(path)) return title
-  }
-  return 'Ferias CR'
+  const match = Object.entries(pageTitles)
+    .filter(([path]) => pathname.startsWith(path))
+    .sort(([leftPath], [rightPath]) => rightPath.length - leftPath.length)[0]
+
+  return match?.[1] ?? 'Ferias CR'
 }
 
 export function TopBar() {

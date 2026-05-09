@@ -19,6 +19,7 @@ export interface IFactura {
   feria_id: number
   participante_id: number | null
   user_id: number
+  metodo_pago_id: number
   consecutivo: string | null
   es_publico_general: boolean
   nombre_publico: string | null
@@ -49,6 +50,11 @@ export interface IFactura {
     name: string
     email: string
   } | null
+  metodo_pago?: {
+    id: number
+    nombre: string
+    activo: boolean
+  } | null
   detalles: IFacturaDetalle[]
   created_at: string
   updated_at: string
@@ -61,6 +67,7 @@ export interface IFacturaFormPayload {
   participante_id: number | null
   tipo_puesto: string | null
   numero_puesto: string | null
+  metodo_pago_id: number | null
   monto_pago: number | null
   observaciones: string | null
   detalles: Array<{
