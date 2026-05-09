@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   Receipt,
+  FileSpreadsheet,
   Car,
   Box,
   Droplets,
@@ -69,6 +70,25 @@ const navItems: NavItem[] = [
     to: '/inspecciones',
     icon: <ClipboardList className="size-4" />,
     permission: 'inspecciones.ver',
+  },
+  {
+    label: 'Reportes',
+    to: '/reportes',
+    icon: <FileSpreadsheet className="size-4" />,
+    children: [
+      {
+        label: 'Facturación',
+        to: '/reportes/facturacion',
+        icon: <Receipt className="size-4" />,
+        permission: 'facturas.ver',
+      },
+      {
+        label: 'Parqueos',
+        to: '/reportes/parqueos',
+        icon: <Car className="size-4" />,
+        permission: 'parqueos.ver',
+      },
+    ],
   },
   {
     label: 'Configuración',

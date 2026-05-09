@@ -19,6 +19,8 @@ const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/facturacion': 'Facturación',
   '/parqueos': 'Parqueo',
+  '/reportes/facturacion': 'Reporte de facturación',
+  '/reportes/parqueos': 'Reporte de parqueos',
   '/tarimas': 'Tarimas',
   '/sanitarios': 'Sanitarios',
   '/configuracion': 'Configuración',

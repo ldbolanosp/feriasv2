@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\MetodoPagoController;
 use App\Http\Controllers\Api\ParqueoController;
 use App\Http\Controllers\Api\ParticipanteController;
 use App\Http\Controllers\Api\ProductoController;
+use App\Http\Controllers\Api\ReporteController;
 use App\Http\Controllers\Api\RolController;
 use App\Http\Controllers\Api\SanitarioController;
 use App\Http\Controllers\Api\TarimaController;
@@ -166,6 +167,12 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/facturacion', [DashboardController::class, 'facturacion'])->middleware('permission:dashboard.ver');
             Route::get('/parqueos', [DashboardController::class, 'parqueos'])->middleware('permission:dashboard.ver');
             Route::get('/recaudacion-diaria', [DashboardController::class, 'recaudacionDiaria'])->middleware('permission:dashboard.ver');
+        });
+
+        // Reportes
+        Route::prefix('reportes')->group(function (): void {
+            Route::get('/facturacion', [ReporteController::class, 'facturacion'])->middleware('permission:facturas.ver');
+            Route::get('/parqueos', [ReporteController::class, 'parqueos'])->middleware('permission:parqueos.ver');
         });
     });
 });

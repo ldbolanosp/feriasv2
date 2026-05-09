@@ -17,6 +17,7 @@ import { ParqueosPage } from '@/pages/parqueos/ParqueosPage'
 import { ParticipantesListPage } from '@/pages/participantes/ParticipantesListPage'
 import { ParticipanteFormPage } from '@/pages/participantes/ParticipanteFormPage'
 import { ProductosPage } from '@/pages/productos/ProductosPage'
+import { ReportesFacturacionPage, ReportesParqueosPage } from '@/pages/reportes/ReportesPage'
 import { SanitariosPage } from '@/pages/sanitarios/SanitariosPage'
 import { TarimasPage } from '@/pages/tarimas/TarimasPage'
 import { UsuariosPage } from '@/pages/usuarios/UsuariosPage'
@@ -108,6 +109,22 @@ export default function App() {
               element={
                 <ProtectedRoute permission="inspecciones.ver">
                   <InspeccionesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reportes/facturacion"
+              element={
+                <ProtectedRoute permission="facturas.ver">
+                  <ReportesFacturacionPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reportes/parqueos"
+              element={
+                <ProtectedRoute permission="parqueos.ver">
+                  <ReportesParqueosPage />
                 </ProtectedRoute>
               }
             />
