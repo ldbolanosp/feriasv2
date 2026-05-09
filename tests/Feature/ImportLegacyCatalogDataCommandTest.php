@@ -107,8 +107,8 @@ INSERT INTO `roles` (`id`, `name`, `slug`, `description`, `created_at`, `updated
 (4, 'Facturadores', 'facturadores', 'Grupo de facturadores', '2025-11-07 01:02:14', '2025-11-07 01:02:14');
 
 INSERT INTO `users` (`id`, `role_id`, `active`, `name`, `email`, `email_verified_at`, `password`, `two_factor_secret`, `two_factor_recovery_codes`, `two_factor_confirmed_at`, `remember_token`, `current_team_id`, `profile_photo_path`, `created_at`, `updated_at`) VALUES
-(7, 1, 1, 'Legacy Admin', 'legacy-admin@example.com', '2025-11-07 01:02:14', '$2y$10$usesomesillystringforsalt$Q9YjZ6.rT3Yf8FJkB6bV7Ok9wM66K2M1OJjK4V3l4I7U9gJfD6L2K', NULL, NULL, NULL, 'remember-me', NULL, NULL, '2025-11-07 01:02:14', '2025-11-13 04:08:09'),
-(8, 4, 0, 'Legacy Facturador', 'legacy-facturador@example.com', NULL, '$2y$10$usesomesillystringforsalt$Q9YjZ6.rT3Yf8FJkB6bV7Ok9wM66K2M1OJjK4V3l4I7U9gJfD6L2K', NULL, NULL, NULL, NULL, NULL, NULL, '2025-11-08 02:19:46', '2025-11-08 02:19:54');
+(7, 1, 1, 'Legacy Admin', ' Legacy-Admin@Example.com ', '2025-11-07 01:02:14', '$2y$10$usesomesillystringforsalt$Q9YjZ6.rT3Yf8FJkB6bV7Ok9wM66K2M1OJjK4V3l4I7U9gJfD6L2K', NULL, NULL, NULL, 'remember-me', NULL, NULL, '2025-11-07 01:02:14', '2025-11-13 04:08:09'),
+(8, 4, 0, 'Legacy Facturador', 'Legacy-Facturador@Example.com', NULL, '$2y$10$usesomesillystringforsalt$Q9YjZ6.rT3Yf8FJkB6bV7Ok9wM66K2M1OJjK4V3l4I7U9gJfD6L2K', NULL, NULL, NULL, NULL, NULL, NULL, '2025-11-08 02:19:46', '2025-11-08 02:19:54');
 SQL);
 
     $this->artisan('app:import-legacy-catalog-data', ['path' => $dumpPath])

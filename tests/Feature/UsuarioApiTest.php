@@ -4,15 +4,16 @@ use App\Models\Feria;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\deleteJson;
-use function Pest\Laravel\getJson;
 use function Pest\Laravel\patchJson;
 use function Pest\Laravel\postJson;
+use function Pest\Laravel\putJson;
 
 uses(RefreshDatabase::class);
 
@@ -175,4 +176,32 @@ it('soft deletes the user, deactivates it and closes sessions', function (): voi
     expect($usuarioEliminado->activo)->toBeFalse();
     expect(DB::table('sessions')->where('user_id', $usuario->id)->count())->toBe(0);
     expect($usuario->tokens()->count())->toBe(0);
+});
+
+it('updates a user password when editing the account', function (): void {
+    $feria = Feria::create(feriaData());
+    authenticateForUsuarios(['usuarios.editar'], $feria);
+
+    Role::findOrCreate('facturador', 'web');
+
+    $usuario = User::factory()->create([
+        'email' => 'juntadirectiva@cacd.co.cr',
+        'password' => 'PasswordViejo123!',
+        'activo' => true,
+    ]);
+    $usuario->syncRoles(['facturador']);
+    $usuario->ferias()->attach($feria->id);
+
+    putJson("/api/v1/usuarios/{$usuario->id}", [
+        'name' => $usuario->name,
+        'email' => $usuario->email,
+        'activo' => true,
+        'role' => 'facturador',
+        'ferias' => [$feria->id],
+        'password' => 'NuevaClave123!',
+        'password_confirmation' => 'NuevaClave123!',
+    ], ['X-Feria-Id' => (string) $feria->id])
+        ->assertOk();
+
+    expect(Hash::check('NuevaClave123!', $usuario->fresh()->password))->toBeTrue();
 });

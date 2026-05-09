@@ -23,6 +23,7 @@ class UpdateUsuarioRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user)],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'activo' => ['sometimes', 'boolean'],
             'role' => ['nullable', 'string', 'exists:roles,name'],
             'ferias' => ['sometimes', 'array'],
@@ -40,6 +41,8 @@ class UpdateUsuarioRequest extends FormRequest
             'email.required' => 'El correo electrónico es requerido.',
             'email.email' => 'El correo electrónico no tiene un formato válido.',
             'email.unique' => 'El correo electrónico ya está registrado.',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'password.confirmed' => 'La confirmación de la contraseña no coincide.',
             'role.exists' => 'El rol seleccionado no existe.',
             'ferias.array' => 'Las ferias deben enviarse como un arreglo.',
             'ferias.*.distinct' => 'No se pueden repetir ferias.',

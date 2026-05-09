@@ -10,6 +10,8 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -18,17 +20,31 @@ class AuthController extends Controller
 {
     public function login(LoginRequest $request): JsonResponse
     {
-        if (! Auth::attempt($request->only('email', 'password'))) {
+        $email = Str::of($request->validated('email'))
+            ->trim()
+            ->lower()
+            ->value();
+        $password = $request->validated('password');
+
+        $user = User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
+
+        if (! $user || ! Hash::check($password, $user->password)) {
             return response()->json(['message' => 'Credenciales incorrectas.'], 401);
         }
 
-        $user = Auth::user();
-
         if (! $user->activo || $user->trashed()) {
-            Auth::logout();
-
             return response()->json(['message' => 'La cuenta está desactivada.'], 403);
         }
+
+        if (Hash::needsRehash($user->password)) {
+            $user->forceFill([
+                'password' => $password,
+            ])->save();
+        }
+
+        Auth::login($user);
 
         $deviceName = $request->validated('device_name');
 
@@ -42,7 +58,9 @@ class AuthController extends Controller
             return response()->json($this->buildUserPayload($user, $token));
         }
 
-        $request->session()->regenerate();
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
         return response()->json($this->buildUserPayload($user));
     }

@@ -251,7 +251,7 @@ class LegacyCatalogImporter
             return [
                 'id' => $user['id'],
                 'name' => $user['name'],
-                'email' => $user['email'],
+                'email' => $this->normalizeEmail($user['email']),
                 'email_verified_at' => $user['email_verified_at'],
                 'password' => $user['password'],
                 'remember_token' => $user['remember_token'],
@@ -364,6 +364,13 @@ class LegacyCatalogImporter
         $trimmedValue = trim((string) $value);
 
         return $trimmedValue === '' ? null : $trimmedValue;
+    }
+
+    private function normalizeEmail(int|string|null $value): ?string
+    {
+        $email = $this->nullableString($value);
+
+        return $email === null ? null : mb_strtolower($email);
     }
 
     /**
