@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\FeriaController;
 use App\Http\Controllers\Api\InspeccionController;
 use App\Http\Controllers\Api\ItemDiagnosticoController;
 use App\Http\Controllers\Api\MetodoPagoController;
+use App\Http\Controllers\Api\MobileDiagnosticLogController;
 use App\Http\Controllers\Api\ParqueoController;
 use App\Http\Controllers\Api\ParticipanteController;
 use App\Http\Controllers\Api\ProductoController;
@@ -30,6 +31,8 @@ Route::prefix('v1')->group(function (): void {
             Route::put('password', [AuthController::class, 'updatePassword']);
             Route::get('mis-ferias', [AuthController::class, 'misFerias']);
             Route::post('seleccionar-feria', [AuthController::class, 'seleccionarFeria']);
+            Route::get('mobile-diagnostic-logs', [MobileDiagnosticLogController::class, 'index'])->middleware('permission:configuracion.ver');
+            Route::post('mobile-diagnostic-logs', [MobileDiagnosticLogController::class, 'store']);
         });
     });
 
