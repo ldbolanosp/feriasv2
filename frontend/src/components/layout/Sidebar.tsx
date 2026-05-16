@@ -15,6 +15,7 @@ import {
   Package,
   UserCog,
   CreditCard,
+  Smartphone,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -130,6 +131,12 @@ const navItems: NavItem[] = [
         label: 'Métodos de pago',
         to: '/configuracion/metodos-pago',
         icon: <CreditCard className="size-4" />,
+        permission: 'configuracion.ver',
+      },
+      {
+        label: 'Diagnósticos móviles',
+        to: '/configuracion/diagnosticos-moviles',
+        icon: <Smartphone className="size-4" />,
         permission: 'configuracion.ver',
       },
       {

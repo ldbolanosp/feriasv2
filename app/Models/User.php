@@ -70,4 +70,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Inspeccion::class);
     }
+
+    public function mobileDiagnosticLogs(): HasMany
+    {
+        return $this->hasMany(MobileDiagnosticLog::class);
+    }
 }

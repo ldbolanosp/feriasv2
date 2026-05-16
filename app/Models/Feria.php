@@ -52,6 +52,11 @@ class Feria extends Model
         return $this->hasMany(ProductoPrecio::class);
     }
 
+    public function mobileDiagnosticLogs(): HasMany
+    {
+        return $this->hasMany(MobileDiagnosticLog::class);
+    }
+
     /** @param Builder<Feria> $query */
     public function scopeActivas(Builder $query): void
     {
