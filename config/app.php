@@ -123,4 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'app_releases_disk' => env('APP_RELEASES_DISK', 'main'),
+
 ];

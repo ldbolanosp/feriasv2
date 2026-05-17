@@ -10,6 +10,8 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useConfiguraciones, useUpdateConfiguraciones } from '@/hooks/useConfiguraciones'
+import { useAuthStore } from '@/stores/authStore'
+import { AppReleaseCard } from './AppReleaseCard'
 
 const schema = z.object({
   tarifa_parqueo: z.number().gt(0, 'La tarifa de parqueo debe ser mayor a cero.'),
@@ -27,6 +29,8 @@ function parseMoney(value: string | null | undefined): number {
 export function ConfiguracionPage() {
   const { data, isLoading } = useConfiguraciones()
   const updateMutation = useUpdateConfiguraciones()
+  const user = useAuthStore((state) => state.user)
+  const canPublishReleases = user?.email === 'ldbolanosp@gmail.com'
 
   const {
     handleSubmit,
@@ -173,6 +177,8 @@ export function ConfiguracionPage() {
           )}
         </CardContent>
       </Card>
+
+      {canPublishReleases && <AppReleaseCard />}
     </div>
   )
 }

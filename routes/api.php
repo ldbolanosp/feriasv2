@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AppUpdateController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConfiguracionController;
 use App\Http\Controllers\Api\DashboardController;
@@ -28,6 +29,10 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('logout', [AuthController::class, 'logout']);
             Route::get('user', [AuthController::class, 'user']);
+            Route::get('app-update', [AppUpdateController::class, 'show']);
+            Route::get('app-releases', [AppUpdateController::class, 'index']);
+            Route::post('app-releases', [AppUpdateController::class, 'store']);
+            Route::patch('app-releases/{appRelease}/deactivate', [AppUpdateController::class, 'deactivate']);
             Route::put('password', [AuthController::class, 'updatePassword']);
             Route::get('mis-ferias', [AuthController::class, 'misFerias']);
             Route::post('seleccionar-feria', [AuthController::class, 'seleccionarFeria']);
