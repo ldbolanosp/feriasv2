@@ -116,6 +116,15 @@ function extractStylesXml(string $xlsxPath): string
     return (string) $xml;
 }
 
+function cellXml(string $worksheetXml, string $reference): string
+{
+    preg_match('/<c r="'.preg_quote($reference, '/').'"[^>]*>.*?<\/c>/s', $worksheetXml, $matches);
+
+    expect($matches)->not->toBeEmpty();
+
+    return $matches[0];
+}
+
 it('downloads the invoice report as xlsx with one row per invoice line', function (): void {
     $feria = reporteFeria();
     $usuario = authenticateForReportes('supervisor', ['facturas.ver'], $feria);
@@ -130,7 +139,7 @@ it('downloads the invoice report as xlsx with one row per invoice line', functio
         'es_publico_general' => false,
         'subtotal' => 8040,
         'estado' => EstadoFactura::Facturado,
-        'fecha_emision' => '2026-05-02 09:15:00',
+        'fecha_emision' => '2026-05-03 05:15:00',
     ]);
 
     $factura->detalles()->create([
@@ -155,13 +164,23 @@ it('downloads the invoice report as xlsx with one row per invoice line', functio
 
     expect($worksheetXml)->toContain('Consecutivo');
     expect($worksheetXml)->toContain('F100005431');
+    expect($worksheetXml)->toContain('2026-05-02');
     expect($worksheetXml)->toContain('Marvin Ruiz Martinez');
     expect($worksheetXml)->toContain('Combo Artesanía Sencillo');
-    expect($worksheetXml)->toContain('8,040.00');
     expect($worksheetXml)->not->toContain('autoFilter');
     expect($worksheetXml)->toContain('s="1"');
+    expect(cellXml($worksheetXml, 'J2'))->toContain('s="3"');
+    expect(cellXml($worksheetXml, 'J2'))->toContain('<v>1</v>');
+    expect(cellXml($worksheetXml, 'K2'))->toContain('s="2"');
+    expect(cellXml($worksheetXml, 'K2'))->toContain('<v>8040</v>');
+    expect(cellXml($worksheetXml, 'L2'))->toContain('s="2"');
+    expect(cellXml($worksheetXml, 'L2'))->toContain('<v>8040</v>');
+    expect(cellXml($worksheetXml, 'M2'))->toContain('s="2"');
+    expect(cellXml($worksheetXml, 'M2'))->toContain('<v>8040</v>');
     expect($stylesXml)->toContain('FF0B1F3A');
     expect($stylesXml)->toContain('FFFFFFFF');
+    expect($stylesXml)->toContain('formatCode="#,##0.00"');
+    expect($stylesXml)->toContain('formatCode="#,##0.0"');
 });
 
 it('downloads the parking report as xlsx including charged tariff', function (): void {
@@ -172,8 +191,8 @@ it('downloads the parking report as xlsx including charged tariff', function ():
         'feria_id' => $feria->id,
         'user_id' => $usuario->id,
         'placa' => 'MCH292',
-        'fecha_hora_ingreso' => '2026-05-02 04:56:24',
-        'fecha_hora_salida' => '2026-05-02 08:12:10',
+        'fecha_hora_ingreso' => '2026-05-02 10:56:24',
+        'fecha_hora_salida' => '2026-05-02 14:12:10',
         'tarifa' => 2500,
         'tarifa_tipo' => 'fija',
         'estado' => EstadoParqueo::Finalizado,
@@ -194,8 +213,10 @@ it('downloads the parking report as xlsx including charged tariff', function ():
     expect($worksheetXml)->toContain('Tarifa cobrada');
     expect($worksheetXml)->toContain('MCH292');
     expect($worksheetXml)->toContain('04:56:24');
+    expect($worksheetXml)->toContain('2026-05-02');
     expect($worksheetXml)->toContain('ÓSCAR');
-    expect($worksheetXml)->toContain('2,500.00');
+    expect(cellXml($worksheetXml, 'G2'))->toContain('s="2"');
+    expect(cellXml($worksheetXml, 'G2'))->toContain('<v>2500</v>');
     expect($worksheetXml)->not->toContain('autoFilter');
     expect($stylesXml)->toContain('FF0B1F3A');
 });

@@ -9,7 +9,7 @@ class ReportXlsxService
 {
     /**
      * @param  list<string>  $headers
-     * @param  list<list<string|null>>  $rows
+     * @param  list<list<array{value:string|int|float|null,type?:string,format?:string}|string|int|float|null>>  $rows
      */
     public function create(string $sheetName, array $headers, array $rows): string
     {
@@ -144,6 +144,10 @@ XML;
         return <<<'XML'
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="2">
+    <numFmt numFmtId="164" formatCode="#,##0.00"/>
+    <numFmt numFmtId="165" formatCode="#,##0.0"/>
+  </numFmts>
   <fonts count="2">
     <font>
       <sz val="11"/>
@@ -194,11 +198,13 @@ XML;
   <cellStyleXfs count="1">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
   </cellStyleXfs>
-  <cellXfs count="2">
+  <cellXfs count="4">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+    <xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
   </cellXfs>
   <cellStyles count="1">
     <cellStyle name="Normal" xfId="0" builtinId="0"/>
@@ -209,7 +215,7 @@ XML;
 
     /**
      * @param  list<string>  $headers
-     * @param  list<list<string|null>>  $rows
+     * @param  list<list<array{value:string|int|float|null,type?:string,format?:string}|string|int|float|null>>  $rows
      */
     private function worksheetXml(array $headers, array $rows): string
     {
@@ -225,7 +231,7 @@ XML;
             $maxLength = mb_strlen($header);
 
             foreach ($rows as $row) {
-                $maxLength = max($maxLength, mb_strlen((string) ($row[$index] ?? '')));
+                $maxLength = max($maxLength, mb_strlen($this->displayValue($row[$index] ?? '')));
             }
 
             $width = min(max($maxLength + 2, 12), 42);
@@ -240,9 +246,17 @@ XML;
 
             foreach ($row as $columnIndex => $value) {
                 $cellReference = $this->columnName($columnIndex + 1).($rowIndex + 1);
-                $cellValue = $this->escape((string) ($value ?? ''));
-                $styleIndex = $rowIndex === 0 ? ' s="1"' : '';
-                $cellsXml .= "<c r=\"{$cellReference}\"{$styleIndex} t=\"inlineStr\"><is><t xml:space=\"preserve\">{$cellValue}</t></is></c>";
+                $styleIndex = $rowIndex === 0 ? '1' : $this->resolveStyleIndex($value);
+                $styleAttribute = $styleIndex !== null ? " s=\"{$styleIndex}\"" : '';
+
+                if ($rowIndex !== 0 && $this->isNumericCell($value)) {
+                    $cellsXml .= "<c r=\"{$cellReference}\"{$styleAttribute}><v>{$this->numericValue($value)}</v></c>";
+
+                    continue;
+                }
+
+                $cellValue = $this->escape($this->displayValue($value));
+                $cellsXml .= "<c r=\"{$cellReference}\"{$styleAttribute} t=\"inlineStr\"><is><t xml:space=\"preserve\">{$cellValue}</t></is></c>";
             }
 
             $rowNumber = $rowIndex + 1;
@@ -283,5 +297,63 @@ XML;
     private function escape(string $value): string
     {
         return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+    }
+
+    /**
+     * @param  array{value:string|int|float|null,type?:string,format?:string}|string|int|float|null  $value
+     */
+    private function displayValue(array|string|int|float|null $value): string
+    {
+        if (is_array($value)) {
+            return (string) ($value['value'] ?? '');
+        }
+
+        return (string) ($value ?? '');
+    }
+
+    /**
+     * @param  array{value:string|int|float|null,type?:string,format?:string}|string|int|float|null  $value
+     */
+    private function isNumericCell(array|string|int|float|null $value): bool
+    {
+        if (! is_array($value)) {
+            return is_int($value) || is_float($value);
+        }
+
+        return ($value['type'] ?? null) === 'number';
+    }
+
+    /**
+     * @param  array{value:string|int|float|null,type?:string,format?:string}|string|int|float|null  $value
+     */
+    private function numericValue(array|string|int|float|null $value): string
+    {
+        $rawValue = is_array($value) ? ($value['value'] ?? null) : $value;
+
+        if (is_int($rawValue)) {
+            return (string) $rawValue;
+        }
+
+        if (is_float($rawValue)) {
+            return rtrim(rtrim(number_format($rawValue, 10, '.', ''), '0'), '.');
+        }
+
+        return is_numeric((string) $rawValue) ? (string) $rawValue : '0';
+    }
+
+    /**
+     * @param  array{value:string|int|float|null,type?:string,format?:string}|string|int|float|null  $value
+     */
+    private function resolveStyleIndex(array|string|int|float|null $value): ?string
+    {
+        if (! is_array($value) || ($value['type'] ?? null) !== 'number') {
+            return null;
+        }
+
+        return match ($value['format'] ?? null) {
+            'money' => '2',
+            'quantity' => '3',
+            default => null,
+        };
     }
 }
