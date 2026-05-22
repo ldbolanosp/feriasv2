@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\EstadoFactura;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Dashboard\GenerarCierreRequest;
 use App\Models\Factura;
+use App\Models\Feria;
 use App\Models\Parqueo;
 use App\Models\Sanitario;
 use App\Models\Tarima;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +19,10 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    private const STORAGE_TIMEZONE = 'UTC';
+
+    private const BUSINESS_TIMEZONE = 'America/Costa_Rica';
+
     public function resumen(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -175,7 +182,7 @@ class DashboardController extends Controller
         }
 
         $facturas = DB::table('facturas')
-            ->selectRaw("DATE(created_at) as fecha, SUM(subtotal) as total")
+            ->selectRaw('DATE(created_at) as fecha, SUM(subtotal) as total')
             ->where('estado', EstadoFactura::Facturado->value)
             ->where('feria_id', $feriaId)
             ->when($user->hasRole('facturador'), fn ($query) => $query->where('user_id', $user->id))
@@ -184,7 +191,7 @@ class DashboardController extends Controller
             ->pluck('total', 'fecha');
 
         $parqueos = DB::table('parqueos')
-            ->selectRaw("DATE(created_at) as fecha, SUM(tarifa) as total")
+            ->selectRaw('DATE(created_at) as fecha, SUM(tarifa) as total')
             ->where('estado', '!=', 'cancelado')
             ->where('feria_id', $feriaId)
             ->when($user->hasRole('facturador'), fn ($query) => $query->where('user_id', $user->id))
@@ -193,7 +200,7 @@ class DashboardController extends Controller
             ->pluck('total', 'fecha');
 
         $tarimas = DB::table('tarimas')
-            ->selectRaw("DATE(created_at) as fecha, SUM(total) as total")
+            ->selectRaw('DATE(created_at) as fecha, SUM(total) as total')
             ->where('estado', 'facturado')
             ->where('feria_id', $feriaId)
             ->when($user->hasRole('facturador'), fn ($query) => $query->where('user_id', $user->id))
@@ -202,7 +209,7 @@ class DashboardController extends Controller
             ->pluck('total', 'fecha');
 
         $sanitarios = DB::table('sanitarios')
-            ->selectRaw("DATE(created_at) as fecha, SUM(total) as total")
+            ->selectRaw('DATE(created_at) as fecha, SUM(total) as total')
             ->where('estado', 'facturado')
             ->where('feria_id', $feriaId)
             ->when($user->hasRole('facturador'), fn ($query) => $query->where('user_id', $user->id))
@@ -221,6 +228,109 @@ class DashboardController extends Controller
         })->all();
 
         return response()->json(['data' => $items]);
+    }
+
+    public function cierre(GenerarCierreRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $feriaId = (int) $request->header('X-Feria-Id');
+        $fecha = CarbonImmutable::createFromFormat(
+            'Y-m-d',
+            $request->validated('fecha'),
+            self::BUSINESS_TIMEZONE
+        )->startOfDay();
+        [$fechaInicioUtc, $fechaFinUtc] = $this->resolveUtcDayRange($fecha);
+        $feria = Feria::query()->findOrFail($feriaId);
+
+        $facturas = Factura::query()
+            ->with('metodoPago')
+            ->where('feria_id', $feriaId)
+            ->where('user_id', $user->id)
+            ->where('estado', EstadoFactura::Facturado->value)
+            ->whereBetween('fecha_emision', [$fechaInicioUtc, $fechaFinUtc])
+            ->get();
+
+        $parqueosTotal = (float) Parqueo::query()
+            ->where('feria_id', $feriaId)
+            ->where('user_id', $user->id)
+            ->where('estado', '!=', 'cancelado')
+            ->whereBetween('fecha_hora_ingreso', [$fechaInicioUtc, $fechaFinUtc])
+            ->sum('tarifa');
+
+        $facturasTotal = (float) $facturas->sum('subtotal');
+        $efectivoTotal = 0.0;
+        $sinpeTotal = 0.0;
+        $tarjetaTotal = 0.0;
+
+        foreach ($facturas as $factura) {
+            $metodoNombre = mb_strtolower($factura->metodoPago?->nombre ?? '');
+            $monto = (float) $factura->subtotal;
+
+            if (str_contains($metodoNombre, 'efectivo')) {
+                $efectivoTotal += $monto;
+
+                continue;
+            }
+
+            if (str_contains($metodoNombre, 'sinpe')) {
+                $sinpeTotal += $monto;
+
+                continue;
+            }
+
+            if (str_contains($metodoNombre, 'tarjeta')) {
+                $tarjetaTotal += $monto;
+            }
+        }
+
+        return response()->json([
+            'data' => [
+                'fecha' => $fecha->format('Y-m-d'),
+                'hora_generacion' => now(self::STORAGE_TIMEZONE)
+                    ->setTimezone(self::BUSINESS_TIMEZONE)
+                    ->format('H:i'),
+                'usuario' => [
+                    'id' => $user->id,
+                    'nombre' => $user->name,
+                    'email' => $user->email,
+                ],
+                'feria' => [
+                    'id' => $feria->id,
+                    'codigo' => $feria->codigo,
+                    'descripcion' => $feria->descripcion,
+                ],
+                'totales' => [
+                    'facturas' => round($facturasTotal, 2),
+                    'parqueos' => round($parqueosTotal, 2),
+                    'general' => round($facturasTotal + $parqueosTotal, 2),
+                ],
+                'facturas_por_metodo_pago' => [
+                    'efectivo' => round($efectivoTotal, 2),
+                    'sinpe' => round($sinpeTotal, 2),
+                    'tarjeta' => round($tarjetaTotal, 2),
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    private function resolveUtcDayRange(CarbonImmutable $fecha): array
+    {
+        $inicio = CarbonImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            $fecha->format('Y-m-d').' 00:00:00',
+            self::BUSINESS_TIMEZONE
+        )->setTimezone(self::STORAGE_TIMEZONE);
+
+        $fin = CarbonImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            $fecha->format('Y-m-d').' 23:59:59',
+            self::BUSINESS_TIMEZONE
+        )->setTimezone(self::STORAGE_TIMEZONE);
+
+        return [$inicio, $fin];
     }
 
     private function facturasQuery(Request $request): Builder

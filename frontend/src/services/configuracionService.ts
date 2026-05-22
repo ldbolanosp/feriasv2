@@ -15,3 +15,15 @@ export async function updateConfiguraciones(
   const { data } = await api.put<IConfiguracionResponse>('/configuraciones', payload)
   return data.data
 }
+
+export async function registrarSalidaVehiculosActivos(): Promise<{
+  processed_count: number
+}> {
+  const { data } = await api.post<{
+    data: {
+      processed_count: number
+    }
+  }>('/configuraciones/salida-vehiculos')
+
+  return data.data
+}

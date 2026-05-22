@@ -114,6 +114,7 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('parqueos')->group(function (): void {
             Route::get('/', [ParqueoController::class, 'index'])->middleware('permission:parqueos.ver');
             Route::post('/', [ParqueoController::class, 'store'])->middleware('permission:parqueos.crear');
+            Route::get('/activo-por-placa', [ParqueoController::class, 'buscarActivoPorPlaca'])->middleware('permission:parqueos.salida');
             Route::get('/{parqueo}', [ParqueoController::class, 'show'])->middleware('permission:parqueos.ver');
             Route::patch('/{parqueo}/salida', [ParqueoController::class, 'salida'])->middleware('permission:parqueos.salida');
             Route::patch('/{parqueo}/cancelar', [ParqueoController::class, 'cancelar'])->middleware('permission:parqueos.cancelar');
@@ -167,6 +168,7 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('configuraciones')->group(function (): void {
             Route::get('/', [ConfiguracionController::class, 'index'])->middleware('permission:configuracion.ver');
             Route::put('/', [ConfiguracionController::class, 'update'])->middleware('permission:configuracion.editar');
+            Route::post('/salida-vehiculos', [ConfiguracionController::class, 'registrarSalidaVehiculosActivos'])->middleware('permission:configuracion.editar');
         });
 
         // Dashboard
@@ -174,6 +176,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/resumen', [DashboardController::class, 'resumen'])->middleware('permission:dashboard.ver');
             Route::get('/facturacion', [DashboardController::class, 'facturacion'])->middleware('permission:dashboard.ver');
             Route::get('/parqueos', [DashboardController::class, 'parqueos'])->middleware('permission:dashboard.ver');
+            Route::get('/cierre', [DashboardController::class, 'cierre'])->middleware('permission:dashboard.ver');
             Route::get('/recaudacion-diaria', [DashboardController::class, 'recaudacionDiaria'])->middleware('permission:dashboard.ver');
         });
 

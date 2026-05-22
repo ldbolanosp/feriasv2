@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Configuracion\UpdateConfiguracionRequest;
 use App\Models\Configuracion;
 use App\Models\Feria;
+use App\Services\ParqueoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ConfiguracionController extends Controller
 {
+    public function __construct(
+        public ParqueoService $parqueoService,
+    ) {}
+
     /** @var array<int, array{clave:string, descripcion:string}> */
     private const CONFIGURACIONES_EDITABLES = [
         ['clave' => 'tarifa_parqueo', 'descripcion' => 'Tarifa de parqueo en colones'],
@@ -86,5 +91,26 @@ class ConfiguracionController extends Controller
         }
 
         return $this->index($request);
+    }
+
+    public function registrarSalidaVehiculosActivos(Request $request): JsonResponse
+    {
+        $feriaId = (int) $request->header('X-Feria-Id');
+        $feria = Feria::query()->findOrFail($feriaId);
+        $processedCount = $this->parqueoService->registrarSalidaMasivaActivos($feriaId);
+
+        return response()->json([
+            'message' => $processedCount > 0
+                ? 'Se registró la salida de los parqueos activos correctamente.'
+                : 'No había parqueos activos para cerrar.',
+            'data' => [
+                'feria' => [
+                    'id' => $feria->id,
+                    'codigo' => $feria->codigo,
+                    'descripcion' => $feria->descripcion,
+                ],
+                'processed_count' => $processedCount,
+            ],
+        ]);
     }
 }

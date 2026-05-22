@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Parqueo\BuscarParqueoActivoRequest;
 use App\Http\Requests\Parqueo\SalidaParqueoRequest;
 use App\Http\Requests\Parqueo\StoreParqueoRequest;
 use App\Http\Resources\ParqueoResource;
@@ -18,8 +19,7 @@ class ParqueoController extends Controller
 {
     public function __construct(
         public ParqueoService $parqueoService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -90,9 +90,33 @@ class ParqueoController extends Controller
         return new ParqueoResource($parqueo->load(['feria', 'usuario']));
     }
 
+    public function buscarActivoPorPlaca(BuscarParqueoActivoRequest $request): JsonResponse
+    {
+        $feriaId = (int) $request->header('X-Feria-Id');
+        $placa = mb_strtoupper(trim($request->string('placa')->value()));
+
+        $parqueo = Parqueo::query()
+            ->with(['feria', 'usuario'])
+            ->porFeria($feriaId)
+            ->where('estado', 'activo')
+            ->where('placa', $placa)
+            ->latest('fecha_hora_ingreso')
+            ->first();
+
+        if ($parqueo === null) {
+            throw ValidationException::withMessages([
+                'placa' => 'No se encontró un parqueo activo para la placa indicada.',
+            ]);
+        }
+
+        return response()->json([
+            'data' => new ParqueoResource($parqueo),
+        ]);
+    }
+
     public function salida(SalidaParqueoRequest $request, Parqueo $parqueo): JsonResponse
     {
-        $this->authorizeParqueoAccess($request, $parqueo, true);
+        $this->authorizeParqueoAccess($request, $parqueo, true, true);
 
         $parqueo = $this->parqueoService->registrarSalida($parqueo, $request->validated());
 
@@ -133,8 +157,12 @@ class ParqueoController extends Controller
         );
     }
 
-    private function authorizeParqueoAccess(Request $request, Parqueo $parqueo, bool $forWrite): void
-    {
+    private function authorizeParqueoAccess(
+        Request $request,
+        Parqueo $parqueo,
+        bool $forWrite,
+        bool $allowFacturadorCrossUserAccess = false,
+    ): void {
         $user = $request->user();
         $feriaId = (int) $request->header('X-Feria-Id');
 
@@ -146,7 +174,11 @@ class ParqueoController extends Controller
             abort(404);
         }
 
-        if ($user->hasRole('facturador') && $parqueo->user_id !== $user->id) {
+        if (
+            $user->hasRole('facturador') &&
+            ! $allowFacturadorCrossUserAccess &&
+            $parqueo->user_id !== $user->id
+        ) {
             abort(404);
         }
 

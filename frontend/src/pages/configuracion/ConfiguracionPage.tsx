@@ -1,15 +1,20 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { isAxiosError } from 'axios'
-import { Loader2, Save } from 'lucide-react'
+import { CarFront, Loader2, Save } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { FormField } from '@/components/shared/FormField'
 import { MoneyInput } from '@/components/shared/MoneyInput'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useConfiguraciones, useUpdateConfiguraciones } from '@/hooks/useConfiguraciones'
+import {
+  useConfiguraciones,
+  useRegistrarSalidaVehiculosActivos,
+  useUpdateConfiguraciones,
+} from '@/hooks/useConfiguraciones'
 import { useAuthStore } from '@/stores/authStore'
 import { AppReleaseCard } from './AppReleaseCard'
 
@@ -29,8 +34,10 @@ function parseMoney(value: string | null | undefined): number {
 export function ConfiguracionPage() {
   const { data, isLoading } = useConfiguraciones()
   const updateMutation = useUpdateConfiguraciones()
+  const salidaVehiculosMutation = useRegistrarSalidaVehiculosActivos()
   const user = useAuthStore((state) => state.user)
   const canPublishReleases = user?.email === 'ldbolanosp@gmail.com'
+  const [showSalidaVehiculosConfirm, setShowSalidaVehiculosConfirm] = useState(false)
 
   const {
     handleSubmit,
@@ -178,7 +185,53 @@ export function ConfiguracionPage() {
         </CardContent>
       </Card>
 
+      <Card className="max-w-3xl">
+        <CardHeader>
+          <CardTitle>Salida de vehículos</CardTitle>
+          <CardDescription>
+            Marca salida a todos los parqueos activos de la feria seleccionada usando las 5:00 p. m.
+            de Costa Rica en la fecha de ingreso de cada vehículo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Usa esta acción solo cuando necesites cerrar todos los parqueos activos pendientes.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={salidaVehiculosMutation.isPending}
+              onClick={() => setShowSalidaVehiculosConfirm(true)}
+            >
+              {salidaVehiculosMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <CarFront className="size-4" />
+              )}
+              Salida de vehículos
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {canPublishReleases && <AppReleaseCard />}
+
+      <ConfirmDialog
+        open={showSalidaVehiculosConfirm}
+        onCancel={() => setShowSalidaVehiculosConfirm(false)}
+        onConfirm={() => {
+          salidaVehiculosMutation.mutate(undefined, {
+            onSuccess: () => {
+              setShowSalidaVehiculosConfirm(false)
+            },
+          })
+        }}
+        title="Registrar salida de vehículos"
+        description="¿Está seguro de marcar salida a todos los parqueos activos de la feria seleccionada?"
+        confirmText="Sí, registrar salida"
+        variant="destructive"
+      />
     </div>
   )
 }

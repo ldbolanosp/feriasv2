@@ -164,7 +164,9 @@ it('cancels an active parking record', function (): void {
         ->assertJsonPath('data.estado', 'cancelado');
 });
 
-it('prevents a facturador from registering exit on another users parking record', function (): void {
+it('allows a facturador to register exit on another users parking record in the same fair', function (): void {
+    Storage::fake('local');
+
     $feria = parqueoFeria();
     authenticateForParqueos('facturador', ['parqueos.salida'], $feria);
     $otroUsuario = User::factory()->create();
@@ -181,5 +183,28 @@ it('prevents a facturador from registering exit on another users parking record'
     ]);
 
     patchJson("/api/v1/parqueos/{$parqueo->id}/salida", [], ['X-Feria-Id' => (string) $feria->id])
-        ->assertNotFound();
+        ->assertOk()
+        ->assertJsonPath('data.estado', 'finalizado');
+});
+
+it('allows a facturador to find an active parking record by plate for exit in the same fair', function (): void {
+    $feria = parqueoFeria();
+    authenticateForParqueos('facturador', ['parqueos.salida'], $feria);
+    $otroUsuario = User::factory()->create();
+    $otroUsuario->ferias()->attach($feria->id);
+
+    $parqueo = Parqueo::create([
+        'feria_id' => $feria->id,
+        'user_id' => $otroUsuario->id,
+        'placa' => 'XYZ123',
+        'fecha_hora_ingreso' => now()->subHour(),
+        'tarifa' => 900,
+        'tarifa_tipo' => 'fija',
+        'estado' => EstadoParqueo::Activo,
+    ]);
+
+    getJson('/api/v1/parqueos/activo-por-placa?placa=xyz123', ['X-Feria-Id' => (string) $feria->id])
+        ->assertOk()
+        ->assertJsonPath('data.id', $parqueo->id)
+        ->assertJsonPath('data.placa', 'XYZ123');
 });

@@ -3,11 +3,13 @@
 use App\Enums\EstadoFactura;
 use App\Models\Factura;
 use App\Models\Feria;
+use App\Models\MetodoPago;
 use App\Models\Parqueo;
 use App\Models\Participante;
 use App\Models\Sanitario;
 use App\Models\Tarima;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -198,4 +200,107 @@ it('returns daily revenue combined across modules', function (): void {
             'tarimas' => 5000,
             'total' => 6800,
         ]);
+});
+
+it('returns cierre totals for a facturador on the selected date', function (): void {
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-05-22 02:45:00', 'UTC'));
+
+    $feria = dashboardFeria(['codigo' => 'VLL-001', 'descripcion' => 'La Villa']);
+    $usuario = authenticateForDashboard('facturador', ['dashboard.ver'], $feria);
+    $otroUsuario = User::factory()->create();
+    $otroUsuario->ferias()->attach($feria->id);
+    $efectivo = MetodoPago::query()->where('nombre', 'Efectivo')->firstOrFail();
+    $sinpe = MetodoPago::query()->where('nombre', 'SINPE')->firstOrFail();
+    $tarjeta = MetodoPago::query()->where('nombre', 'Tarjeta de Crédito')->firstOrFail();
+    $fechaSeleccionada = CarbonImmutable::create(2026, 5, 21, 0, 0, 0, 'America/Costa_Rica');
+
+    Factura::create([
+        'feria_id' => $feria->id,
+        'user_id' => $usuario->id,
+        'metodo_pago_id' => $efectivo->id,
+        'es_publico_general' => true,
+        'nombre_publico' => 'Cliente 1',
+        'subtotal' => 1000,
+        'estado' => EstadoFactura::Facturado,
+        'fecha_emision' => $fechaSeleccionada->setTime(8, 30)->setTimezone('UTC'),
+    ]);
+
+    Factura::create([
+        'feria_id' => $feria->id,
+        'user_id' => $usuario->id,
+        'metodo_pago_id' => $sinpe->id,
+        'es_publico_general' => true,
+        'nombre_publico' => 'Cliente 2',
+        'subtotal' => 2000,
+        'estado' => EstadoFactura::Facturado,
+        'fecha_emision' => $fechaSeleccionada->setTime(9, 15)->setTimezone('UTC'),
+    ]);
+
+    Factura::create([
+        'feria_id' => $feria->id,
+        'user_id' => $usuario->id,
+        'metodo_pago_id' => $tarjeta->id,
+        'es_publico_general' => true,
+        'nombre_publico' => 'Cliente 3',
+        'subtotal' => 3000,
+        'estado' => EstadoFactura::Facturado,
+        'fecha_emision' => $fechaSeleccionada->setTime(10, 0)->setTimezone('UTC'),
+    ]);
+
+    Factura::create([
+        'feria_id' => $feria->id,
+        'user_id' => $otroUsuario->id,
+        'metodo_pago_id' => $efectivo->id,
+        'es_publico_general' => true,
+        'nombre_publico' => 'Ajeno',
+        'subtotal' => 9999,
+        'estado' => EstadoFactura::Facturado,
+        'fecha_emision' => $fechaSeleccionada->setTime(10, 30)->setTimezone('UTC'),
+    ]);
+
+    Parqueo::create([
+        'feria_id' => $feria->id,
+        'user_id' => $usuario->id,
+        'placa' => 'CLS101',
+        'tarifa' => 1500,
+        'tarifa_tipo' => 'fija',
+        'estado' => 'finalizado',
+        'fecha_hora_ingreso' => $fechaSeleccionada->setTime(7, 0)->setTimezone('UTC'),
+    ]);
+
+    Parqueo::create([
+        'feria_id' => $feria->id,
+        'user_id' => $otroUsuario->id,
+        'placa' => 'OTH202',
+        'tarifa' => 4500,
+        'tarifa_tipo' => 'fija',
+        'estado' => 'finalizado',
+        'fecha_hora_ingreso' => $fechaSeleccionada->setTime(7, 30)->setTimezone('UTC'),
+    ]);
+
+    getJson('/api/v1/dashboard/cierre?fecha='.$fechaSeleccionada->format('Y-m-d'), [
+        'X-Feria-Id' => (string) $feria->id,
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.fecha', $fechaSeleccionada->format('Y-m-d'))
+        ->assertJsonPath('data.hora_generacion', '20:45')
+        ->assertJsonPath('data.usuario.nombre', $usuario->name)
+        ->assertJsonPath('data.feria.codigo', 'VLL-001')
+        ->assertJsonPath('data.totales.facturas', 6000)
+        ->assertJsonPath('data.totales.parqueos', 1500)
+        ->assertJsonPath('data.totales.general', 7500)
+        ->assertJsonPath('data.facturas_por_metodo_pago.efectivo', 1000)
+        ->assertJsonPath('data.facturas_por_metodo_pago.sinpe', 2000)
+        ->assertJsonPath('data.facturas_por_metodo_pago.tarjeta', 3000);
+
+    CarbonImmutable::setTestNow();
+});
+
+it('forbids cierre generation for non facturador roles', function (): void {
+    $feria = dashboardFeria();
+    authenticateForDashboard('supervisor', ['dashboard.ver'], $feria);
+
+    getJson('/api/v1/dashboard/cierre?fecha='.now()->format('Y-m-d'), [
+        'X-Feria-Id' => (string) $feria->id,
+    ])->assertForbidden();
 });

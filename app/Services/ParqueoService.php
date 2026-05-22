@@ -6,15 +6,19 @@ use App\Enums\EstadoParqueo;
 use App\Enums\TarifaTipo;
 use App\Models\Configuracion;
 use App\Models\Parqueo;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ParqueoService
 {
+    private const STORAGE_TIMEZONE = 'UTC';
+
+    private const BUSINESS_TIMEZONE = 'America/Costa_Rica';
+
     public function __construct(
         public PdfTicketService $pdfTicketService,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array{placa:string,observaciones?:string|null}  $data
@@ -99,5 +103,40 @@ class ParqueoService
             })
             ->orderByRaw('CASE WHEN feria_id IS NULL THEN 1 ELSE 0 END')
             ->value('valor') ?? '0.00');
+    }
+
+    public function registrarSalidaMasivaActivos(int $feriaId): int
+    {
+        $parqueos = Parqueo::query()
+            ->where('feria_id', $feriaId)
+            ->where('estado', EstadoParqueo::Activo)
+            ->with(['feria', 'usuario'])
+            ->get();
+
+        foreach ($parqueos as $parqueo) {
+            $fechaSalida = $this->resolveClosingTimeForIngreso($parqueo);
+
+            $parqueo->update([
+                'fecha_hora_salida' => $fechaSalida,
+                'estado' => EstadoParqueo::Finalizado,
+            ]);
+
+            $pdfPath = $this->pdfTicketService->generarTicketParqueo($parqueo->fresh(['feria', 'usuario']));
+            $parqueo->update(['pdf_path' => $pdfPath]);
+        }
+
+        return $parqueos->count();
+    }
+
+    private function resolveClosingTimeForIngreso(Parqueo $parqueo): CarbonImmutable
+    {
+        $ingresoLocal = CarbonImmutable::instance($parqueo->fecha_hora_ingreso)
+            ->setTimezone(self::BUSINESS_TIMEZONE);
+
+        return CarbonImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            $ingresoLocal->format('Y-m-d').' 17:00:00',
+            self::BUSINESS_TIMEZONE
+        )->setTimezone(self::STORAGE_TIMEZONE);
     }
 }
