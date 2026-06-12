@@ -11,9 +11,11 @@ use App\Http\Resources\FeriaResource;
 use App\Http\Resources\ParticipanteResource;
 use App\Models\Feria;
 use App\Models\Participante;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 
 class ParticipanteController extends Controller
 {
@@ -54,7 +56,9 @@ class ParticipanteController extends Controller
 
     public function store(StoreParticipanteRequest $request): ParticipanteResource
     {
-        $participante = Participante::create($request->validated());
+        $participante = Participante::create(
+            $this->withCarneUpdateTracking($request, $request->validated())
+        );
 
         return new ParticipanteResource($participante->load('ferias'));
     }
@@ -66,7 +70,13 @@ class ParticipanteController extends Controller
 
     public function update(UpdateParticipanteRequest $request, Participante $participante): ParticipanteResource
     {
-        $participante->update($request->validated());
+        $participante->fill($request->validated());
+
+        if ($this->hasDirtyCarneFields($participante)) {
+            $participante->forceFill($this->carneUpdateTracking($request));
+        }
+
+        $participante->save();
 
         return new ParticipanteResource($participante->load('ferias'));
     }
@@ -81,7 +91,13 @@ class ParticipanteController extends Controller
             'El participante no pertenece a la feria activa.'
         );
 
-        $participante->update($request->validated());
+        $participante->fill($request->validated());
+
+        if ($this->hasDirtyCarneFields($participante)) {
+            $participante->forceFill($this->carneUpdateTracking($request));
+        }
+
+        $participante->save();
 
         return new ParticipanteResource($participante->load('ferias'));
     }
@@ -139,5 +155,55 @@ class ParticipanteController extends Controller
             ->get(['id', 'nombre', 'numero_identificacion', 'tipo_identificacion']);
 
         return ParticipanteResource::collection($participantes);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function withCarneUpdateTracking(FormRequest $request, array $data): array
+    {
+        if (! $this->hasFilledCarneFields($data)) {
+            return $data;
+        }
+
+        return [
+            ...$data,
+            ...$this->carneUpdateTracking($request),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function hasFilledCarneFields(array $data): bool
+    {
+        foreach (['numero_carne', 'fecha_emision_carne', 'fecha_vencimiento_carne'] as $field) {
+            if (($data[$field] ?? null) !== null && $data[$field] !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasDirtyCarneFields(Participante $participante): bool
+    {
+        return $participante->isDirty([
+            'numero_carne',
+            'fecha_emision_carne',
+            'fecha_vencimiento_carne',
+        ]);
+    }
+
+    /**
+     * @return array{carne_actualizado_por_user_id:int|null, carne_actualizado_en:Carbon}
+     */
+    private function carneUpdateTracking(Request $request): array
+    {
+        return [
+            'carne_actualizado_por_user_id' => $request->user()?->id,
+            'carne_actualizado_en' => now(),
+        ];
     }
 }

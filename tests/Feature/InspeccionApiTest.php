@@ -10,6 +10,7 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\assertDatabaseHas;
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\patchJson;
 use function Pest\Laravel\postJson;
@@ -191,7 +192,7 @@ it('returns latest failed inspection per participant in reinspection queue', fun
 it('updates participant card information from inspections module', function (): void {
     $feria = inspeccionFeria();
     $participante = participanteInspeccionEnFeria($feria, ['nombre' => 'Ana Gómez']);
-    authenticateForInspeccionModule(['participantes.editar'], $feria);
+    $user = authenticateForInspeccionModule(['participantes.editar'], $feria);
 
     patchJson("/api/v1/participantes/{$participante->id}/carne", [
         'numero_carne' => 'CAR-2026-009',
@@ -202,4 +203,11 @@ it('updates participant card information from inspections module', function (): 
         ->assertJsonPath('data.nombre', 'Ana Gómez')
         ->assertJsonPath('data.numero_carne', 'CAR-2026-009')
         ->assertJsonPath('data.fecha_vencimiento_carne', '2027-04-01');
+
+    assertDatabaseHas('participantes', [
+        'id' => $participante->id,
+        'carne_actualizado_por_user_id' => $user->id,
+    ]);
+
+    expect($participante->refresh()->carne_actualizado_en)->not->toBeNull();
 });

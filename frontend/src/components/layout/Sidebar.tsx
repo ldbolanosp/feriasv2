@@ -89,6 +89,12 @@ const navItems: NavItem[] = [
         icon: <Car className="size-4" />,
         permission: 'parqueos.ver',
       },
+      {
+        label: 'Vencimiento carné',
+        to: '/reportes/vencimiento-carne',
+        icon: <ClipboardList className="size-4" />,
+        permission: 'inspecciones.ver',
+      },
     ],
   },
   {
@@ -242,11 +248,6 @@ function NavItemLink({
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [tabletCollapsed, setTabletCollapsed] = useState(false)
-  const location = useLocation()
-
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [location.pathname])
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(min-width: 768px) and (max-width: 1279px)')

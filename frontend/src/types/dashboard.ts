@@ -31,6 +31,25 @@ export interface IDashboardFacturacion {
     nombre: string
     total: number
   }>
+  resumen_por_facturador: IDashboardResumenFacturador[]
+}
+
+export interface IDashboardResumenFacturador {
+  usuario: {
+    id: number
+    nombre: string
+    email: string
+  }
+  facturas_count: number
+  parqueos_count: number
+  total_facturas: number
+  total_parqueos: number
+  total_general: number
+  facturas_por_metodo_pago: {
+    efectivo: number
+    sinpe: number
+    tarjeta: number
+  }
 }
 
 export interface IDashboardParqueos {

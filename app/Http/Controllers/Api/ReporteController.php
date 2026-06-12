@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Reporte\ExportCarnesVencimientoRequest;
 use App\Http\Requests\Reporte\ExportReporteRequest;
 use App\Services\ReporteService;
 use Carbon\CarbonImmutable;
@@ -16,11 +17,11 @@ class ReporteController extends Controller
 
     public function facturacion(ExportReporteRequest $request): BinaryFileResponse
     {
-        $feriaId = $request->validated('feria_id');
+        $feriaId = $request->filled('feria_id') ? $request->integer('feria_id') : null;
 
         $reporte = $this->reporteService->generarFacturacion(
             $request->user(),
-            is_int($feriaId) ? $feriaId : null,
+            $feriaId,
             CarbonImmutable::parse($request->validated('fecha_inicio')),
             CarbonImmutable::parse($request->validated('fecha_fin')),
         );
@@ -36,13 +37,31 @@ class ReporteController extends Controller
 
     public function parqueos(ExportReporteRequest $request): BinaryFileResponse
     {
-        $feriaId = $request->validated('feria_id');
+        $feriaId = $request->filled('feria_id') ? $request->integer('feria_id') : null;
 
         $reporte = $this->reporteService->generarParqueos(
             $request->user(),
-            is_int($feriaId) ? $feriaId : null,
+            $feriaId,
             CarbonImmutable::parse($request->validated('fecha_inicio')),
             CarbonImmutable::parse($request->validated('fecha_fin')),
+        );
+
+        return response()->download(
+            $reporte['path'],
+            $reporte['filename'],
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]
+        )->deleteFileAfterSend(true);
+    }
+
+    public function vencimientoCarne(ExportCarnesVencimientoRequest $request): BinaryFileResponse
+    {
+        $feriaId = $request->filled('feria_id') ? $request->integer('feria_id') : null;
+
+        $reporte = $this->reporteService->generarVencimientosCarne(
+            $request->user(),
+            $feriaId,
         );
 
         return response()->download(

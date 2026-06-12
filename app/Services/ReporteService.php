@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Factura;
 use App\Models\Feria;
 use App\Models\Parqueo;
+use App\Models\Participante;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -30,7 +31,7 @@ class ReporteService
         [$fechaInicioUtc, $fechaFinUtc] = $this->resolveUtcRange($fechaInicio, $fechaFin);
 
         $facturas = Factura::query()
-            ->with(['participante', 'usuario', 'detalles.producto'])
+            ->with(['participante', 'usuario', 'metodoPago', 'detalles.producto'])
             ->whereIn('feria_id', $feriaIds)
             ->where('estado', 'facturado')
             ->whereBetween('fecha_emision', [$fechaInicioUtc, $fechaFinUtc])
@@ -58,6 +59,7 @@ class ReporteService
                     $factura->participante?->correo_electronico ?: 'No aplica',
                     $factura->participante?->telefono ?? '',
                     $factura->usuario?->name ?? '',
+                    $factura->metodoPago?->nombre ?? '',
                     $detalle->producto?->codigo ?? '',
                     $detalle->descripcion_producto,
                     $this->numberCell((float) $detalle->cantidad, 'quantity'),
@@ -78,6 +80,7 @@ class ReporteService
                 'Correo del Participante',
                 'Teléfono del Participante',
                 'Usuario que Facturó',
+                'Método de Pago',
                 'Código Producto Facturado',
                 'Descripción Producto Facturado',
                 'Cantidad',
@@ -153,6 +156,51 @@ class ReporteService
                 'reporte_parqueo_%s_%s.xlsx',
                 $fechaInicio->format('Ymd'),
                 $fechaFin->format('Ymd'),
+            ),
+        ];
+    }
+
+    /**
+     * @return array{path:string, filename:string}
+     */
+    public function generarVencimientosCarne(User $user, ?int $feriaId): array
+    {
+        $feriaIds = $this->resolveFeriaIds($user, $feriaId);
+
+        $participantes = Participante::query()
+            ->with('carneActualizadoPor')
+            ->where('activo', true)
+            ->whereHas('ferias', fn (Builder $query) => $query->whereIn('ferias.id', $feriaIds))
+            ->orderByRaw('CASE WHEN fecha_vencimiento_carne IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('fecha_vencimiento_carne')
+            ->orderBy('nombre')
+            ->get();
+
+        $rows = $participantes->map(fn (Participante $participante): array => [
+            $participante->numero_identificacion,
+            $participante->nombre,
+            $participante->fecha_emision_carne?->toDateString() ?? '',
+            $participante->fecha_vencimiento_carne?->toDateString() ?? '',
+            $participante->carneActualizadoPor?->name ?? 'No registrado',
+        ])->values()->all();
+
+        $path = $this->reportXlsxService->create(
+            'Vencimiento Carne',
+            [
+                'Número de Identificación',
+                'Nombre',
+                'Fecha de Inicio',
+                'Fecha de Vencimiento',
+                'Último Usuario que Actualizó Carné',
+            ],
+            $rows
+        );
+
+        return [
+            'path' => $path,
+            'filename' => sprintf(
+                'reporte_vencimiento_carne_%s.xlsx',
+                now(self::BUSINESS_TIMEZONE)->format('Ymd'),
             ),
         ];
     }

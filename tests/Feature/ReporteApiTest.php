@@ -4,6 +4,7 @@ use App\Enums\EstadoFactura;
 use App\Enums\EstadoParqueo;
 use App\Models\Factura;
 use App\Models\Feria;
+use App\Models\MetodoPago;
 use App\Models\Parqueo;
 use App\Models\Participante;
 use App\Models\Producto;
@@ -130,11 +131,15 @@ it('downloads the invoice report as xlsx with one row per invoice line', functio
     $usuario = authenticateForReportes('supervisor', ['facturas.ver'], $feria);
     $participante = participanteReporte($feria);
     $producto = productoReporte($feria);
+    $metodoPago = MetodoPago::query()
+        ->where('nombre', 'SINPE')
+        ->firstOrFail();
 
     $factura = Factura::create([
         'feria_id' => $feria->id,
         'participante_id' => $participante->id,
         'user_id' => $usuario->id,
+        'metodo_pago_id' => $metodoPago->id,
         'consecutivo' => 'F100005431',
         'es_publico_general' => false,
         'subtotal' => 8040,
@@ -166,17 +171,19 @@ it('downloads the invoice report as xlsx with one row per invoice line', functio
     expect($worksheetXml)->toContain('F100005431');
     expect($worksheetXml)->toContain('2026-05-02');
     expect($worksheetXml)->toContain('Marvin Ruiz Martinez');
+    expect($worksheetXml)->toContain('Método de Pago');
+    expect($worksheetXml)->toContain('SINPE');
     expect($worksheetXml)->toContain('Combo Artesanía Sencillo');
     expect($worksheetXml)->not->toContain('autoFilter');
     expect($worksheetXml)->toContain('s="1"');
-    expect(cellXml($worksheetXml, 'J2'))->toContain('s="3"');
-    expect(cellXml($worksheetXml, 'J2'))->toContain('<v>1</v>');
-    expect(cellXml($worksheetXml, 'K2'))->toContain('s="2"');
-    expect(cellXml($worksheetXml, 'K2'))->toContain('<v>8040</v>');
     expect(cellXml($worksheetXml, 'L2'))->toContain('s="2"');
     expect(cellXml($worksheetXml, 'L2'))->toContain('<v>8040</v>');
+    expect(cellXml($worksheetXml, 'K2'))->toContain('s="3"');
+    expect(cellXml($worksheetXml, 'K2'))->toContain('<v>1</v>');
     expect(cellXml($worksheetXml, 'M2'))->toContain('s="2"');
     expect(cellXml($worksheetXml, 'M2'))->toContain('<v>8040</v>');
+    expect(cellXml($worksheetXml, 'N2'))->toContain('s="2"');
+    expect(cellXml($worksheetXml, 'N2'))->toContain('<v>8040</v>');
     expect($stylesXml)->toContain('FF0B1F3A');
     expect($stylesXml)->toContain('FFFFFFFF');
     expect($stylesXml)->toContain('formatCode="#,##0.00"');
@@ -219,4 +226,58 @@ it('downloads the parking report as xlsx including charged tariff', function ():
     expect(cellXml($worksheetXml, 'G2'))->toContain('<v>2500</v>');
     expect($worksheetXml)->not->toContain('autoFilter');
     expect($stylesXml)->toContain('FF0B1F3A');
+});
+
+it('downloads the card expiration report filtered by fair', function (): void {
+    $feria = reporteFeria();
+    $otraFeria = reporteFeria();
+    authenticateForReportes('supervisor', ['inspecciones.ver'], $feria);
+    $actualizador = User::factory()->create([
+        'name' => 'Laura Chacón',
+    ]);
+
+    $participante = Participante::create([
+        'nombre' => 'Ana Gómez',
+        'tipo_identificacion' => 'fisica',
+        'numero_identificacion' => '109990888',
+        'numero_carne' => 'CAR-2026-009',
+        'fecha_emision_carne' => '2026-04-01',
+        'fecha_vencimiento_carne' => '2027-04-01',
+        'carne_actualizado_por_user_id' => $actualizador->id,
+        'carne_actualizado_en' => '2026-05-10 14:30:00',
+        'activo' => true,
+    ]);
+    $participante->ferias()->attach($feria->id);
+
+    $participanteOtraFeria = Participante::create([
+        'nombre' => 'Participante Otra Feria',
+        'tipo_identificacion' => 'fisica',
+        'numero_identificacion' => '208880777',
+        'fecha_emision_carne' => '2026-03-01',
+        'fecha_vencimiento_carne' => '2027-03-01',
+        'activo' => true,
+    ]);
+    $participanteOtraFeria->ferias()->attach($otraFeria->id);
+
+    $response = get("/api/v1/reportes/vencimiento-carne?feria_id={$feria->id}", [
+        'X-Feria-Id' => (string) $feria->id,
+    ]);
+
+    $response
+        ->assertOk()
+        ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        ->assertDownload('reporte_vencimiento_carne_'.now('America/Costa_Rica')->format('Ymd').'.xlsx');
+
+    $worksheetXml = extractWorksheetXml($response->baseResponse->getFile()->getPathname());
+
+    expect($worksheetXml)->toContain('Número de Identificación');
+    expect($worksheetXml)->toContain('Fecha de Inicio');
+    expect($worksheetXml)->toContain('Fecha de Vencimiento');
+    expect($worksheetXml)->toContain('Último Usuario que Actualizó Carné');
+    expect($worksheetXml)->toContain('109990888');
+    expect($worksheetXml)->toContain('Ana Gómez');
+    expect($worksheetXml)->toContain('2026-04-01');
+    expect($worksheetXml)->toContain('2027-04-01');
+    expect($worksheetXml)->toContain('Laura Chacón');
+    expect($worksheetXml)->not->toContain('Participante Otra Feria');
 });

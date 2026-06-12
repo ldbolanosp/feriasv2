@@ -202,6 +202,95 @@ it('returns daily revenue combined across modules', function (): void {
         ]);
 });
 
+it('returns administrator billing and collection summary by facturador', function (): void {
+    $feria = dashboardFeria();
+    authenticateForDashboard('administrador', ['dashboard.ver'], $feria);
+    $facturadorPrincipal = User::factory()->create([
+        'name' => 'Laura Chacón',
+        'email' => 'laura@example.com',
+    ]);
+    $facturadorSecundario = User::factory()->create([
+        'name' => 'Carlos Mora',
+        'email' => 'carlos@example.com',
+    ]);
+    $facturadorPrincipal->ferias()->attach($feria->id);
+    $facturadorSecundario->ferias()->attach($feria->id);
+    $efectivo = MetodoPago::query()->where('nombre', 'Efectivo')->firstOrFail();
+    $sinpe = MetodoPago::query()->where('nombre', 'SINPE')->firstOrFail();
+    $tarjeta = MetodoPago::query()->where('nombre', 'Tarjeta de Crédito')->firstOrFail();
+    $fecha = CarbonImmutable::create(2026, 5, 21, 0, 0, 0, 'America/Costa_Rica');
+
+    Factura::create([
+        'feria_id' => $feria->id,
+        'user_id' => $facturadorPrincipal->id,
+        'metodo_pago_id' => $efectivo->id,
+        'es_publico_general' => true,
+        'nombre_publico' => 'Cliente efectivo',
+        'subtotal' => 1000,
+        'estado' => EstadoFactura::Facturado,
+        'fecha_emision' => $fecha->setTime(8, 0)->setTimezone('UTC'),
+    ]);
+
+    Factura::create([
+        'feria_id' => $feria->id,
+        'user_id' => $facturadorPrincipal->id,
+        'metodo_pago_id' => $sinpe->id,
+        'es_publico_general' => true,
+        'nombre_publico' => 'Cliente sinpe',
+        'subtotal' => 2000,
+        'estado' => EstadoFactura::Facturado,
+        'fecha_emision' => $fecha->setTime(9, 0)->setTimezone('UTC'),
+    ]);
+
+    Factura::create([
+        'feria_id' => $feria->id,
+        'user_id' => $facturadorSecundario->id,
+        'metodo_pago_id' => $tarjeta->id,
+        'es_publico_general' => true,
+        'nombre_publico' => 'Cliente tarjeta',
+        'subtotal' => 3000,
+        'estado' => EstadoFactura::Facturado,
+        'fecha_emision' => $fecha->setTime(10, 0)->setTimezone('UTC'),
+    ]);
+
+    Parqueo::create([
+        'feria_id' => $feria->id,
+        'user_id' => $facturadorPrincipal->id,
+        'placa' => 'ADM101',
+        'tarifa' => 1500,
+        'tarifa_tipo' => 'fija',
+        'estado' => 'finalizado',
+        'fecha_hora_ingreso' => $fecha->setTime(7, 0)->setTimezone('UTC'),
+    ]);
+
+    Parqueo::create([
+        'feria_id' => $feria->id,
+        'user_id' => $facturadorSecundario->id,
+        'placa' => 'ADM202',
+        'tarifa' => 500,
+        'tarifa_tipo' => 'fija',
+        'estado' => 'cancelado',
+        'fecha_hora_ingreso' => $fecha->setTime(7, 30)->setTimezone('UTC'),
+    ]);
+
+    getJson('/api/v1/dashboard/facturacion?fecha_desde=2026-05-21&fecha_hasta=2026-05-21', [
+        'X-Feria-Id' => (string) $feria->id,
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.resumen_por_facturador.0.usuario.nombre', 'Laura Chacón')
+        ->assertJsonPath('data.resumen_por_facturador.0.facturas_count', 2)
+        ->assertJsonPath('data.resumen_por_facturador.0.parqueos_count', 1)
+        ->assertJsonPath('data.resumen_por_facturador.0.total_facturas', 3000)
+        ->assertJsonPath('data.resumen_por_facturador.0.total_parqueos', 1500)
+        ->assertJsonPath('data.resumen_por_facturador.0.total_general', 4500)
+        ->assertJsonPath('data.resumen_por_facturador.0.facturas_por_metodo_pago.efectivo', 1000)
+        ->assertJsonPath('data.resumen_por_facturador.0.facturas_por_metodo_pago.sinpe', 2000)
+        ->assertJsonPath('data.resumen_por_facturador.0.facturas_por_metodo_pago.tarjeta', 0)
+        ->assertJsonPath('data.resumen_por_facturador.1.usuario.nombre', 'Carlos Mora')
+        ->assertJsonPath('data.resumen_por_facturador.1.total_general', 3000)
+        ->assertJsonPath('data.resumen_por_facturador.1.facturas_por_metodo_pago.tarjeta', 3000);
+});
+
 it('returns cierre totals for a facturador on the selected date', function (): void {
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-05-22 02:45:00', 'UTC'));
 

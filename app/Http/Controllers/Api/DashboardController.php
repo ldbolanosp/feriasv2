@@ -145,6 +145,9 @@ class DashboardController extends Controller
                 'ultimas_facturas' => $ultimasFacturas,
                 'facturas_por_producto' => $productos,
                 'facturas_por_usuario' => $usuarios,
+                'resumen_por_facturador' => $user->hasRole('administrador')
+                    ? $this->resumenPorFacturador($request)
+                    : [],
             ],
         ]);
     }
@@ -333,6 +336,98 @@ class DashboardController extends Controller
         return [$inicio, $fin];
     }
 
+    /**
+     * @return list<array{
+     *     usuario: array{id:int, nombre:string, email:string},
+     *     facturas_count:int,
+     *     parqueos_count:int,
+     *     total_facturas:float,
+     *     total_parqueos:float,
+     *     total_general:float,
+     *     facturas_por_metodo_pago: array{efectivo:float, sinpe:float, tarjeta:float}
+     * }>
+     */
+    private function resumenPorFacturador(Request $request): array
+    {
+        $feriaId = (int) $request->header('X-Feria-Id');
+
+        $facturas = DB::table('facturas')
+            ->join('users', 'users.id', '=', 'facturas.user_id')
+            ->leftJoin('metodo_pagos', 'metodo_pagos.id', '=', 'facturas.metodo_pago_id')
+            ->selectRaw('
+                users.id as user_id,
+                users.name as user_name,
+                users.email as user_email,
+                COUNT(facturas.id) as facturas_count,
+                SUM(facturas.subtotal) as total_facturas,
+                SUM(CASE WHEN LOWER(COALESCE(metodo_pagos.nombre, \'\')) LIKE \'%efectivo%\' THEN facturas.subtotal ELSE 0 END) as total_efectivo,
+                SUM(CASE WHEN LOWER(COALESCE(metodo_pagos.nombre, \'\')) LIKE \'%sinpe%\' THEN facturas.subtotal ELSE 0 END) as total_sinpe,
+                SUM(CASE WHEN LOWER(COALESCE(metodo_pagos.nombre, \'\')) LIKE \'%tarjeta%\' THEN facturas.subtotal ELSE 0 END) as total_tarjeta
+            ')
+            ->where('facturas.feria_id', $feriaId)
+            ->where('facturas.estado', EstadoFactura::Facturado->value);
+
+        $this->applyBusinessDateRangeToBaseQuery($facturas, 'facturas.fecha_emision', $request);
+
+        $facturasPorUsuario = $facturas
+            ->groupBy('users.id', 'users.name', 'users.email')
+            ->get()
+            ->keyBy('user_id');
+
+        $parqueos = DB::table('parqueos')
+            ->join('users', 'users.id', '=', 'parqueos.user_id')
+            ->selectRaw('
+                users.id as user_id,
+                users.name as user_name,
+                users.email as user_email,
+                COUNT(parqueos.id) as parqueos_count,
+                SUM(parqueos.tarifa) as total_parqueos
+            ')
+            ->where('parqueos.feria_id', $feriaId)
+            ->where('parqueos.estado', '!=', 'cancelado');
+
+        $this->applyBusinessDateRangeToBaseQuery($parqueos, 'parqueos.fecha_hora_ingreso', $request);
+
+        $parqueosPorUsuario = $parqueos
+            ->groupBy('users.id', 'users.name', 'users.email')
+            ->get()
+            ->keyBy('user_id');
+
+        return $facturasPorUsuario
+            ->keys()
+            ->merge($parqueosPorUsuario->keys())
+            ->unique()
+            ->map(function ($userId) use ($facturasPorUsuario, $parqueosPorUsuario): array {
+                $facturas = $facturasPorUsuario->get($userId);
+                $parqueos = $parqueosPorUsuario->get($userId);
+                $userName = (string) ($facturas?->user_name ?? $parqueos?->user_name ?? '');
+                $userEmail = (string) ($facturas?->user_email ?? $parqueos?->user_email ?? '');
+                $totalFacturas = round((float) ($facturas?->total_facturas ?? 0), 2);
+                $totalParqueos = round((float) ($parqueos?->total_parqueos ?? 0), 2);
+
+                return [
+                    'usuario' => [
+                        'id' => (int) $userId,
+                        'nombre' => $userName,
+                        'email' => $userEmail,
+                    ],
+                    'facturas_count' => (int) ($facturas?->facturas_count ?? 0),
+                    'parqueos_count' => (int) ($parqueos?->parqueos_count ?? 0),
+                    'total_facturas' => $totalFacturas,
+                    'total_parqueos' => $totalParqueos,
+                    'total_general' => round($totalFacturas + $totalParqueos, 2),
+                    'facturas_por_metodo_pago' => [
+                        'efectivo' => round((float) ($facturas?->total_efectivo ?? 0), 2),
+                        'sinpe' => round((float) ($facturas?->total_sinpe ?? 0), 2),
+                        'tarjeta' => round((float) ($facturas?->total_tarjeta ?? 0), 2),
+                    ],
+                ];
+            })
+            ->sortByDesc('total_general')
+            ->values()
+            ->all();
+    }
+
     private function facturasQuery(Request $request): Builder
     {
         $query = Factura::query();
@@ -417,6 +512,26 @@ class DashboardController extends Controller
         if ($request->filled('fecha_hasta')) {
             $query->whereDate($column, '<=', $request->date('fecha_hasta'));
         }
+    }
+
+    private function applyBusinessDateRangeToBaseQuery(\Illuminate\Database\Query\Builder $query, string $column, Request $request): void
+    {
+        if (! $request->filled('fecha_desde') && ! $request->filled('fecha_hasta')) {
+            return;
+        }
+
+        $fechaDesde = $request->filled('fecha_desde')
+            ? CarbonImmutable::parse($request->date('fecha_desde'), self::BUSINESS_TIMEZONE)
+            : CarbonImmutable::create(1900, 1, 1, 0, 0, 0, self::BUSINESS_TIMEZONE);
+
+        $fechaHasta = $request->filled('fecha_hasta')
+            ? CarbonImmutable::parse($request->date('fecha_hasta'), self::BUSINESS_TIMEZONE)
+            : CarbonImmutable::create(2999, 12, 31, 23, 59, 59, self::BUSINESS_TIMEZONE);
+
+        $query->whereBetween($column, [
+            $fechaDesde->startOfDay()->setTimezone(self::STORAGE_TIMEZONE),
+            $fechaHasta->endOfDay()->setTimezone(self::STORAGE_TIMEZONE),
+        ]);
     }
 
     private function dashboardRole(User $user): string

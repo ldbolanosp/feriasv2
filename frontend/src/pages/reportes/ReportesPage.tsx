@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Car, Download, Loader2, Receipt } from 'lucide-react'
+import { Car, Download, IdCard, Loader2, Receipt } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { isAxiosError } from 'axios'
 import { useFerias } from '@/hooks/useFerias'
 import { PageHeader } from '@/components/shared/PageHeader'
@@ -15,7 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { downloadReporteFacturacion, downloadReporteParqueos } from '@/services/reporteService'
+import {
+  downloadReporteFacturacion,
+  downloadReporteParqueos,
+  downloadReporteVencimientoCarne,
+} from '@/services/reporteService'
 import { useAuthStore } from '@/stores/authStore'
 import type { IFeria } from '@/types/auth'
 
@@ -30,10 +35,11 @@ interface FeriaOption {
 interface ReporteCardProps {
   title: string
   description: string
-  icon: typeof Receipt
+  icon: LucideIcon
   buttonLabel: string
   feriaOptions: FeriaOption[]
-  onDownload: (params: { fecha_inicio: string; fecha_fin: string; feria_id?: number }) => Promise<void>
+  showDateRange?: boolean
+  onDownload: (params: { fecha_inicio?: string; fecha_fin?: string; feria_id?: number }) => Promise<void>
 }
 
 function ReporteCard({
@@ -42,6 +48,7 @@ function ReporteCard({
   icon: Icon,
   buttonLabel,
   feriaOptions,
+  showDateRange = true,
   onDownload,
 }: ReporteCardProps) {
   const [fechaInicio, setFechaInicio] = useState(today)
@@ -49,7 +56,7 @@ function ReporteCard({
   const [feriaId, setFeriaId] = useState<string>(ALL_FAIRS)
   const [isDownloading, setIsDownloading] = useState(false)
 
-  const invalidRange = fechaInicio > fechaFin
+  const invalidRange = showDateRange && fechaInicio > fechaFin
 
   const handleDownload = async () => {
     if (invalidRange) {
@@ -59,11 +66,17 @@ function ReporteCard({
     setIsDownloading(true)
 
     try {
-      await onDownload({
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
-        feria_id: feriaId === ALL_FAIRS ? undefined : Number(feriaId),
-      })
+      await onDownload(
+        showDateRange
+          ? {
+              fecha_inicio: fechaInicio,
+              fecha_fin: fechaFin,
+              feria_id: feriaId === ALL_FAIRS ? undefined : Number(feriaId),
+            }
+          : {
+              feria_id: feriaId === ALL_FAIRS ? undefined : Number(feriaId),
+            },
+      )
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 422) {
         return
@@ -87,7 +100,7 @@ function ReporteCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-5 pt-6">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className={showDateRange ? 'grid gap-4 md:grid-cols-3' : 'grid gap-4 md:grid-cols-2'}>
           <div className="space-y-2">
             <Label htmlFor={`${title}-feria`}>Feria</Label>
             <Select value={feriaId} onValueChange={setFeriaId}>
@@ -105,27 +118,31 @@ function ReporteCard({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor={`${title}-fecha-inicio`}>Fecha inicial</Label>
-            <Input
-              id={`${title}-fecha-inicio`}
-              type="date"
-              value={fechaInicio}
-              max={fechaFin}
-              onChange={(event) => setFechaInicio(event.target.value)}
-            />
-          </div>
+          {showDateRange && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor={`${title}-fecha-inicio`}>Fecha inicial</Label>
+                <Input
+                  id={`${title}-fecha-inicio`}
+                  type="date"
+                  value={fechaInicio}
+                  max={fechaFin}
+                  onChange={(event) => setFechaInicio(event.target.value)}
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor={`${title}-fecha-fin`}>Fecha final</Label>
-            <Input
-              id={`${title}-fecha-fin`}
-              type="date"
-              value={fechaFin}
-              min={fechaInicio}
-              onChange={(event) => setFechaFin(event.target.value)}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${title}-fecha-fin`}>Fecha final</Label>
+                <Input
+                  id={`${title}-fecha-fin`}
+                  type="date"
+                  value={fechaFin}
+                  min={fechaInicio}
+                  onChange={(event) => setFechaFin(event.target.value)}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -195,7 +212,13 @@ export function ReportesFacturacionPage() {
         icon={Receipt}
         buttonLabel="Descargar reporte"
         feriaOptions={feriaOptions}
-        onDownload={downloadReporteFacturacion}
+        onDownload={(params) =>
+          downloadReporteFacturacion({
+            fecha_inicio: params.fecha_inicio ?? today,
+            fecha_fin: params.fecha_fin ?? today,
+            feria_id: params.feria_id,
+          })
+        }
       />
     </div>
   )
@@ -231,7 +254,50 @@ export function ReportesParqueosPage() {
         icon={Car}
         buttonLabel="Descargar reporte"
         feriaOptions={feriaOptions}
-        onDownload={downloadReporteParqueos}
+        onDownload={(params) =>
+          downloadReporteParqueos({
+            fecha_inicio: params.fecha_inicio ?? today,
+            fecha_fin: params.fecha_fin ?? today,
+            feria_id: params.feria_id,
+          })
+        }
+      />
+    </div>
+  )
+}
+
+export function ReportesVencimientoCarnePage() {
+  const roles = useAuthStore((state) => state.roles)
+  const feriasUsuario = useAuthStore((state) => state.ferias)
+  const isAdmin = roles.includes('administrador')
+  const { data: feriasData } = useFerias(
+    {
+      page: 1,
+      per_page: 100,
+      activa: true,
+      sort: 'codigo',
+      direction: 'asc',
+    },
+    isAdmin,
+  )
+
+  const feriaOptions = buildFeriaOptions(isAdmin ? (feriasData?.data ?? []) : feriasUsuario)
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Reporte de vencimiento de carné"
+        description="Exporte el estado de vigencia del carné para una feria específica o todas las ferias disponibles."
+      />
+
+      <ReporteCard
+        title="Vencimiento de carné"
+        description="Incluye identificación, participante, fechas del carné y el último usuario que actualizó el registro."
+        icon={IdCard}
+        buttonLabel="Descargar reporte"
+        feriaOptions={feriaOptions}
+        showDateRange={false}
+        onDownload={downloadReporteVencimientoCarne}
       />
     </div>
   )

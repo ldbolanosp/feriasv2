@@ -88,7 +88,7 @@ function ChartCard({
 export function DashboardPage() {
   const roles = useAuthStore((state) => state.roles)
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(new Date().setDate(new Date().getDate() - 6)),
+    from: new Date(),
     to: new Date(),
   })
 
@@ -104,6 +104,7 @@ export function DashboardPage() {
     useDashboardRecaudacionDiaria(params)
 
   const isAdminOrSupervisor = roles.includes('administrador') || roles.includes('supervisor')
+  const isAdmin = roles.includes('administrador')
   const isFacturador = roles.includes('facturador')
   const isInspector = roles.includes('inspector') && !isAdminOrSupervisor && !isFacturador
   const isLoading =
@@ -138,6 +139,65 @@ export function DashboardPage() {
             <StatsCard icon={Droplets} title="Sanitarios" value={resumen.sanitarios_count} />
             <StatsCard icon={CreditCard} title="Recaudación total" value={formatMoney(resumen.recaudacion_total)} />
           </div>
+
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumen por facturador</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Facturador</TableHead>
+                      <TableHead>Facturas</TableHead>
+                      <TableHead>Parqueos</TableHead>
+                      <TableHead>Efectivo</TableHead>
+                      <TableHead>SINPE</TableHead>
+                      <TableHead>Tarjeta</TableHead>
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {facturacion.resumen_por_facturador.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                          No hay facturación ni cobros de parqueo para el rango seleccionado.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      facturacion.resumen_por_facturador.map((item) => (
+                        <TableRow key={item.usuario.id}>
+                          <TableCell>
+                            <div className="min-w-0">
+                              <p className="font-medium">{item.usuario.nombre}</p>
+                              <p className="truncate text-xs text-muted-foreground">{item.usuario.email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <p>{formatMoney(item.total_facturas)}</p>
+                              <p className="text-xs text-muted-foreground">{item.facturas_count} facturas</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <p>{formatMoney(item.total_parqueos)}</p>
+                              <p className="text-xs text-muted-foreground">{item.parqueos_count} cobros</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatMoney(item.facturas_por_metodo_pago.efectivo)}</TableCell>
+                          <TableCell>{formatMoney(item.facturas_por_metodo_pago.sinpe)}</TableCell>
+                          <TableCell>{formatMoney(item.facturas_por_metodo_pago.tarjeta)}</TableCell>
+                          <TableCell className="font-semibold">{formatMoney(item.total_general)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
             <ChartCard title="Tendencia diaria de recaudación">

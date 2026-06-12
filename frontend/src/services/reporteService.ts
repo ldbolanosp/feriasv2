@@ -6,6 +6,10 @@ export interface ReporteParams {
   feria_id?: number
 }
 
+export interface ReporteSinFechasParams {
+  feria_id?: number
+}
+
 function extractFilename(contentDisposition: string | undefined, fallback: string): string {
   if (!contentDisposition) {
     return fallback
@@ -39,7 +43,7 @@ function triggerDownload(blob: Blob, filename: string): void {
 
 async function downloadReporte(
   endpoint: string,
-  params: ReporteParams,
+  params: ReporteParams | ReporteSinFechasParams,
   fallbackFilename: string,
 ): Promise<void> {
   const response = await api.get(endpoint, {
@@ -77,5 +81,17 @@ export async function downloadReporteParqueos(params: ReporteParams): Promise<vo
     '/reportes/parqueos',
     params,
     fallbackFilename.replace('.xlsx', `${feriaIdLabel}.xlsx`),
+  )
+}
+
+export async function downloadReporteVencimientoCarne(
+  params: ReporteSinFechasParams,
+): Promise<void> {
+  const feriaIdLabel = params.feria_id ? `_feria_${params.feria_id}` : ''
+
+  await downloadReporte(
+    '/reportes/vencimiento-carne',
+    params,
+    `reporte_vencimiento_carne${feriaIdLabel}.xlsx`,
   )
 }

@@ -7,6 +7,7 @@ use App\Enums\TipoSangre;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -24,6 +25,8 @@ class Participante extends Model
         'numero_carne',
         'fecha_emision_carne',
         'fecha_vencimiento_carne',
+        'carne_actualizado_por_user_id',
+        'carne_actualizado_en',
         'procedencia',
         'telefono',
         'tipo_sangre',
@@ -43,6 +46,7 @@ class Participante extends Model
             'tipo_sangre' => TipoSangre::class,
             'fecha_emision_carne' => 'date',
             'fecha_vencimiento_carne' => 'date',
+            'carne_actualizado_en' => 'datetime',
             'activo' => 'boolean',
         ];
     }
@@ -50,6 +54,11 @@ class Participante extends Model
     public function ferias(): BelongsToMany
     {
         return $this->belongsToMany(Feria::class, 'feria_participante');
+    }
+
+    public function carneActualizadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'carne_actualizado_por_user_id');
     }
 
     public function facturas(): HasMany
