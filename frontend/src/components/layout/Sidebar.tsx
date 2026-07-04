@@ -90,6 +90,12 @@ const navItems: NavItem[] = [
         permission: 'parqueos.ver',
       },
       {
+        label: 'Tarimas',
+        to: '/reportes/tarimas',
+        icon: <Box className="size-4" />,
+        permission: 'tarimas.ver',
+      },
+      {
         label: 'Vencimiento carné',
         to: '/reportes/vencimiento-carne',
         icon: <ClipboardList className="size-4" />,

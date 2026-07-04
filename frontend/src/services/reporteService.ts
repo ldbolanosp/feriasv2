@@ -84,6 +84,17 @@ export async function downloadReporteParqueos(params: ReporteParams): Promise<vo
   )
 }
 
+export async function downloadReporteTarimas(params: ReporteParams): Promise<void> {
+  const feriaIdLabel = params.feria_id ? `_feria_${params.feria_id}` : ''
+  const fallbackFilename = `reporte_tarimas_${params.fecha_inicio.replaceAll('-', '')}_${params.fecha_fin.replaceAll('-', '')}.xlsx`
+
+  await downloadReporte(
+    '/reportes/tarimas',
+    params,
+    fallbackFilename.replace('.xlsx', `${feriaIdLabel}.xlsx`),
+  )
+}
+
 export async function downloadReporteVencimientoCarne(
   params: ReporteSinFechasParams,
 ): Promise<void> {

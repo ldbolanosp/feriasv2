@@ -9,6 +9,7 @@ use App\Models\Parqueo;
 use App\Models\Participante;
 use App\Models\Producto;
 use App\Models\ProductoPrecio;
+use App\Models\Tarima;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -225,6 +226,94 @@ it('downloads the parking report as xlsx including charged tariff', function ():
     expect(cellXml($worksheetXml, 'G2'))->toContain('s="2"');
     expect(cellXml($worksheetXml, 'G2'))->toContain('<v>2500</v>');
     expect($worksheetXml)->not->toContain('autoFilter');
+    expect($stylesXml)->toContain('FF0B1F3A');
+});
+
+it('downloads the tarima report as xlsx with charged totals', function (): void {
+    $feria = reporteFeria();
+    $otraFeria = reporteFeria();
+    $usuario = authenticateForReportes('supervisor', ['tarimas.ver'], $feria);
+    $participante = participanteReporte($feria);
+    $otroParticipante = Participante::create([
+        'nombre' => 'Participante Otra Feria',
+        'tipo_identificacion' => 'fisica',
+        'numero_identificacion' => '208880777',
+        'activo' => true,
+    ]);
+    $otroParticipante->ferias()->attach($otraFeria->id);
+    $otroUsuario = User::factory()->create();
+    $otroUsuario->ferias()->attach($otraFeria->id);
+
+    $tarima = Tarima::create([
+        'feria_id' => $feria->id,
+        'user_id' => $usuario->id,
+        'participante_id' => $participante->id,
+        'numero_tarima' => 'T-08',
+        'cantidad' => 2,
+        'precio_unitario' => 5000,
+        'total' => 10000,
+        'estado' => 'facturado',
+        'observaciones' => 'Cobro semanal',
+    ]);
+    $tarima->forceFill([
+        'created_at' => '2026-05-03 05:20:00',
+        'updated_at' => '2026-05-03 05:20:00',
+    ])->save();
+
+    $tarimaCancelada = Tarima::create([
+        'feria_id' => $feria->id,
+        'user_id' => $usuario->id,
+        'participante_id' => $participante->id,
+        'numero_tarima' => 'T-CANCEL',
+        'cantidad' => 1,
+        'precio_unitario' => 5000,
+        'total' => 5000,
+        'estado' => 'cancelado',
+    ]);
+    $tarimaCancelada->forceFill([
+        'created_at' => '2026-05-03 05:25:00',
+        'updated_at' => '2026-05-03 05:25:00',
+    ])->save();
+
+    $tarimaOtraFeria = Tarima::create([
+        'feria_id' => $otraFeria->id,
+        'user_id' => $otroUsuario->id,
+        'participante_id' => $otroParticipante->id,
+        'numero_tarima' => 'T-99',
+        'cantidad' => 1,
+        'precio_unitario' => 5000,
+        'total' => 5000,
+        'estado' => 'facturado',
+    ]);
+    $tarimaOtraFeria->forceFill([
+        'created_at' => '2026-05-03 05:30:00',
+        'updated_at' => '2026-05-03 05:30:00',
+    ])->save();
+
+    $response = get('/api/v1/reportes/tarimas?fecha_inicio=2026-05-02&fecha_fin=2026-05-02', [
+        'X-Feria-Id' => (string) $feria->id,
+    ]);
+
+    $response
+        ->assertOk()
+        ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        ->assertDownload('reporte_tarimas_20260502_20260502.xlsx');
+
+    $worksheetXml = extractWorksheetXml($response->baseResponse->getFile()->getPathname());
+    $stylesXml = extractStylesXml($response->baseResponse->getFile()->getPathname());
+
+    expect($worksheetXml)->toContain('Número de Tarima');
+    expect($worksheetXml)->toContain('T-08');
+    expect($worksheetXml)->toContain('Marvin Ruiz Martinez');
+    expect($worksheetXml)->toContain('Cobro semanal');
+    expect($worksheetXml)->not->toContain('T-CANCEL');
+    expect($worksheetXml)->not->toContain('T-99');
+    expect(cellXml($worksheetXml, 'F2'))->toContain('s="3"');
+    expect(cellXml($worksheetXml, 'F2'))->toContain('<v>2</v>');
+    expect(cellXml($worksheetXml, 'G2'))->toContain('s="2"');
+    expect(cellXml($worksheetXml, 'G2'))->toContain('<v>5000</v>');
+    expect(cellXml($worksheetXml, 'H2'))->toContain('s="2"');
+    expect(cellXml($worksheetXml, 'H2'))->toContain('<v>10000</v>');
     expect($stylesXml)->toContain('FF0B1F3A');
 });
 

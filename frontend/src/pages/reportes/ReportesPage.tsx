@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Car, Download, IdCard, Loader2, Receipt } from 'lucide-react'
+import { Box, Car, Download, IdCard, Loader2, Receipt } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { isAxiosError } from 'axios'
 import { useFerias } from '@/hooks/useFerias'
@@ -19,6 +19,7 @@ import {
 import {
   downloadReporteFacturacion,
   downloadReporteParqueos,
+  downloadReporteTarimas,
   downloadReporteVencimientoCarne,
 } from '@/services/reporteService'
 import { useAuthStore } from '@/stores/authStore'
@@ -256,6 +257,48 @@ export function ReportesParqueosPage() {
         feriaOptions={feriaOptions}
         onDownload={(params) =>
           downloadReporteParqueos({
+            fecha_inicio: params.fecha_inicio ?? today,
+            fecha_fin: params.fecha_fin ?? today,
+            feria_id: params.feria_id,
+          })
+        }
+      />
+    </div>
+  )
+}
+
+export function ReportesTarimasPage() {
+  const roles = useAuthStore((state) => state.roles)
+  const feriasUsuario = useAuthStore((state) => state.ferias)
+  const isAdmin = roles.includes('administrador')
+  const { data: feriasData } = useFerias(
+    {
+      page: 1,
+      per_page: 100,
+      activa: true,
+      sort: 'codigo',
+      direction: 'asc',
+    },
+    isAdmin,
+  )
+
+  const feriaOptions = buildFeriaOptions(isAdmin ? (feriasData?.data ?? []) : feriasUsuario)
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Reporte de tarimas"
+        description="Exporte los cobros de tarimas en formato Excel para el rango de fechas seleccionado."
+      />
+
+      <ReporteCard
+        title="Tarimas"
+        description="Incluye participante, usuario, número de tarima, cantidad, precio unitario y total cobrado."
+        icon={Box}
+        buttonLabel="Descargar reporte"
+        feriaOptions={feriaOptions}
+        onDownload={(params) =>
+          downloadReporteTarimas({
             fecha_inicio: params.fecha_inicio ?? today,
             fecha_fin: params.fecha_fin ?? today,
             feria_id: params.feria_id,

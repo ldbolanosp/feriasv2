@@ -21,6 +21,7 @@ const pageTitles: Record<string, string> = {
   '/parqueos': 'Parqueo',
   '/reportes/facturacion': 'Reporte de facturación',
   '/reportes/parqueos': 'Reporte de parqueos',
+  '/reportes/tarimas': 'Reporte de tarimas',
   '/reportes/vencimiento-carne': 'Reporte de vencimiento de carné',
   '/tarimas': 'Tarimas',
   '/sanitarios': 'Sanitarios',

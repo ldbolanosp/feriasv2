@@ -21,6 +21,7 @@ import { ProductosPage } from '@/pages/productos/ProductosPage'
 import {
   ReportesFacturacionPage,
   ReportesParqueosPage,
+  ReportesTarimasPage,
   ReportesVencimientoCarnePage,
 } from '@/pages/reportes/ReportesPage'
 import { SanitariosPage } from '@/pages/sanitarios/SanitariosPage'
@@ -130,6 +131,14 @@ export default function App() {
               element={
                 <ProtectedRoute permission="parqueos.ver">
                   <ReportesParqueosPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reportes/tarimas"
+              element={
+                <ProtectedRoute permission="tarimas.ver">
+                  <ReportesTarimasPage />
                 </ProtectedRoute>
               }
             />

@@ -6,6 +6,7 @@ use App\Models\Factura;
 use App\Models\Feria;
 use App\Models\Parqueo;
 use App\Models\Participante;
+use App\Models\Tarima;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -154,6 +155,69 @@ class ReporteService
             'path' => $path,
             'filename' => sprintf(
                 'reporte_parqueo_%s_%s.xlsx',
+                $fechaInicio->format('Ymd'),
+                $fechaFin->format('Ymd'),
+            ),
+        ];
+    }
+
+    /**
+     * @return array{path:string, filename:string}
+     */
+    public function generarTarimas(User $user, ?int $feriaId, CarbonImmutable $fechaInicio, CarbonImmutable $fechaFin): array
+    {
+        $feriaIds = $this->resolveFeriaIds($user, $feriaId);
+        [$fechaInicioUtc, $fechaFinUtc] = $this->resolveUtcRange($fechaInicio, $fechaFin);
+
+        $tarimas = Tarima::query()
+            ->with(['participante', 'usuario'])
+            ->whereIn('feria_id', $feriaIds)
+            ->where('estado', 'facturado')
+            ->whereBetween('created_at', [$fechaInicioUtc, $fechaFinUtc])
+            ->when(
+                $user->hasRole('facturador'),
+                fn (Builder $query) => $query->where('user_id', $user->id)
+            )
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        $rows = $tarimas->map(function (Tarima $tarima): array {
+            $fechaLocal = $this->toBusinessTimezone($tarima->created_at);
+
+            return [
+                $fechaLocal?->format('Y-m-d') ?? '',
+                $tarima->participante?->nombre ?? '',
+                $tarima->participante?->numero_identificacion ?? '',
+                $tarima->usuario?->name ?? '',
+                $tarima->numero_tarima ?? '',
+                $this->numberCell((float) $tarima->cantidad, 'quantity'),
+                $this->numberCell((float) $tarima->precio_unitario, 'money'),
+                $this->numberCell((float) $tarima->total, 'money'),
+                $tarima->observaciones ?? '',
+            ];
+        })->values()->all();
+
+        $path = $this->reportXlsxService->create(
+            'Tarimas',
+            [
+                'Fecha',
+                'Nombre del Participante',
+                'Identificación del Participante',
+                'Usuario que Facturó',
+                'Número de Tarima',
+                'Cantidad',
+                'Precio Unitario',
+                'Total',
+                'Observaciones',
+            ],
+            $rows
+        );
+
+        return [
+            'path' => $path,
+            'filename' => sprintf(
+                'reporte_tarimas_%s_%s.xlsx',
                 $fechaInicio->format('Ymd'),
                 $fechaFin->format('Ymd'),
             ),
