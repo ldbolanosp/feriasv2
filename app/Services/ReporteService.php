@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Factura;
 use App\Models\Feria;
+use App\Models\Inspeccion;
 use App\Models\Parqueo;
 use App\Models\Participante;
 use App\Models\Tarima;
@@ -265,6 +266,154 @@ class ReporteService
             'filename' => sprintf(
                 'reporte_vencimiento_carne_%s.xlsx',
                 now(self::BUSINESS_TIMEZONE)->format('Ymd'),
+            ),
+        ];
+    }
+
+    /**
+     * @return array{path:string, filename:string}
+     */
+    public function generarInspecciones(User $user, ?int $feriaId, CarbonImmutable $fechaInicio, CarbonImmutable $fechaFin): array
+    {
+        $feriaIds = $this->resolveFeriaIds($user, $feriaId);
+        [$fechaInicioUtc, $fechaFinUtc] = $this->resolveUtcRange($fechaInicio, $fechaFin);
+
+        $inspecciones = Inspeccion::query()
+            ->with(['participante', 'inspector', 'items'])
+            ->whereIn('feria_id', $feriaIds)
+            ->whereBetween('created_at', [$fechaInicioUtc, $fechaFinUtc])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        $rows = [];
+
+        foreach ($inspecciones as $inspeccion) {
+            $fechaLocal = $this->toBusinessTimezone($inspeccion->created_at);
+
+            foreach ($inspeccion->items as $item) {
+                $rows[] = [
+                    $inspeccion->id,
+                    $fechaLocal?->format('Y-m-d') ?? '',
+                    $fechaLocal?->format('H:i:s') ?? '',
+                    $inspeccion->reinspeccion_de_id === null ? 'Inspección' : 'Reinspección',
+                    $inspeccion->reinspeccion_de_id ?? '',
+                    $inspeccion->participante?->nombre ?? '',
+                    $inspeccion->participante?->numero_identificacion ?? '',
+                    $inspeccion->participante?->numero_carne ?? '',
+                    $inspeccion->inspector?->name ?? '',
+                    $this->numberCell((float) $inspeccion->total_items, 'quantity'),
+                    $this->numberCell((float) $inspeccion->total_incumplidos, 'quantity'),
+                    $item->nombre_item,
+                    $item->cumple ? 'Sí' : 'No',
+                    $item->observaciones ?? '',
+                ];
+            }
+        }
+
+        $path = $this->reportXlsxService->create(
+            'Inspecciones',
+            [
+                'ID Inspección',
+                'Fecha',
+                'Hora',
+                'Tipo',
+                'ID Inspección Original',
+                'Nombre del Participante',
+                'Identificación del Participante',
+                'Número de Carné',
+                'Inspector',
+                'Total Items',
+                'Total Incumplidos',
+                'Item Revisado',
+                'Cumple',
+                'Observaciones',
+            ],
+            $rows
+        );
+
+        return [
+            'path' => $path,
+            'filename' => sprintf(
+                'reporte_inspecciones_%s_%s.xlsx',
+                $fechaInicio->format('Ymd'),
+                $fechaFin->format('Ymd'),
+            ),
+        ];
+    }
+
+    /**
+     * @return array{path:string, filename:string}
+     */
+    public function generarReinspecciones(User $user, ?int $feriaId, CarbonImmutable $fechaInicio, CarbonImmutable $fechaFin): array
+    {
+        $feriaIds = $this->resolveFeriaIds($user, $feriaId);
+        [$fechaInicioUtc, $fechaFinUtc] = $this->resolveUtcRange($fechaInicio, $fechaFin);
+
+        $reinspecciones = Inspeccion::query()
+            ->with(['participante', 'inspector', 'reinspeccionDe', 'items'])
+            ->whereIn('feria_id', $feriaIds)
+            ->whereNotNull('reinspeccion_de_id')
+            ->whereBetween('created_at', [$fechaInicioUtc, $fechaFinUtc])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        $rows = [];
+
+        foreach ($reinspecciones as $reinspeccion) {
+            $fechaLocal = $this->toBusinessTimezone($reinspeccion->created_at);
+            $fechaOriginalLocal = $this->toBusinessTimezone($reinspeccion->reinspeccionDe?->created_at);
+
+            foreach ($reinspeccion->items as $item) {
+                $rows[] = [
+                    $reinspeccion->id,
+                    $fechaLocal?->format('Y-m-d') ?? '',
+                    $fechaLocal?->format('H:i:s') ?? '',
+                    $reinspeccion->reinspeccion_de_id ?? '',
+                    $fechaOriginalLocal?->format('Y-m-d') ?? '',
+                    $reinspeccion->participante?->nombre ?? '',
+                    $reinspeccion->participante?->numero_identificacion ?? '',
+                    $reinspeccion->participante?->numero_carne ?? '',
+                    $reinspeccion->inspector?->name ?? '',
+                    $this->numberCell((float) ($reinspeccion->reinspeccionDe?->total_incumplidos ?? 0), 'quantity'),
+                    $this->numberCell((float) $reinspeccion->total_items, 'quantity'),
+                    $this->numberCell((float) $reinspeccion->total_incumplidos, 'quantity'),
+                    $item->nombre_item,
+                    $item->cumple ? 'Sí' : 'No',
+                    $item->observaciones ?? '',
+                ];
+            }
+        }
+
+        $path = $this->reportXlsxService->create(
+            'Reinspecciones',
+            [
+                'ID Reinspección',
+                'Fecha Reinspección',
+                'Hora Reinspección',
+                'ID Inspección Original',
+                'Fecha Inspección Original',
+                'Nombre del Participante',
+                'Identificación del Participante',
+                'Número de Carné',
+                'Inspector',
+                'Incumplidos Originales',
+                'Total Items Reinspección',
+                'Incumplidos Reinspección',
+                'Item Revisado',
+                'Cumple',
+                'Observaciones',
+            ],
+            $rows
+        );
+
+        return [
+            'path' => $path,
+            'filename' => sprintf(
+                'reporte_reinspecciones_%s_%s.xlsx',
+                $fechaInicio->format('Ymd'),
+                $fechaFin->format('Ymd'),
             ),
         ];
     }

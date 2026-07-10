@@ -185,6 +185,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/facturacion', [ReporteController::class, 'facturacion'])->middleware('permission:facturas.ver');
             Route::get('/parqueos', [ReporteController::class, 'parqueos'])->middleware('permission:parqueos.ver');
             Route::get('/tarimas', [ReporteController::class, 'tarimas'])->middleware('permission:tarimas.ver');
+            Route::get('/inspecciones', [ReporteController::class, 'inspecciones'])->middleware('permission:inspecciones.ver');
+            Route::get('/reinspecciones', [ReporteController::class, 'reinspecciones'])->middleware('permission:inspecciones.ver');
             Route::get('/vencimiento-carne', [ReporteController::class, 'vencimientoCarne'])->middleware('permission:inspecciones.ver');
         });
     });

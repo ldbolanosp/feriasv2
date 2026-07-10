@@ -4,6 +4,7 @@ use App\Enums\EstadoFactura;
 use App\Enums\EstadoParqueo;
 use App\Models\Factura;
 use App\Models\Feria;
+use App\Models\Inspeccion;
 use App\Models\MetodoPago;
 use App\Models\Parqueo;
 use App\Models\Participante;
@@ -315,6 +316,136 @@ it('downloads the tarima report as xlsx with charged totals', function (): void 
     expect(cellXml($worksheetXml, 'H2'))->toContain('s="2"');
     expect(cellXml($worksheetXml, 'H2'))->toContain('<v>10000</v>');
     expect($stylesXml)->toContain('FF0B1F3A');
+});
+
+it('downloads the inspections report as xlsx with one row per reviewed item', function (): void {
+    $feria = reporteFeria();
+    $usuario = authenticateForReportes('supervisor', ['inspecciones.ver'], $feria);
+    $participante = participanteReporte($feria);
+
+    $inspeccion = Inspeccion::create([
+        'feria_id' => $feria->id,
+        'participante_id' => $participante->id,
+        'user_id' => $usuario->id,
+        'reinspeccion_de_id' => null,
+        'total_items' => 2,
+        'total_incumplidos' => 1,
+    ]);
+    $inspeccion->forceFill([
+        'created_at' => '2026-05-03 05:40:00',
+        'updated_at' => '2026-05-03 05:40:00',
+    ])->save();
+    $inspeccion->items()->createMany([
+        [
+            'item_diagnostico_id' => null,
+            'nombre_item' => 'Uso correcto del carné',
+            'cumple' => true,
+            'observaciones' => null,
+            'orden' => 1,
+        ],
+        [
+            'item_diagnostico_id' => null,
+            'nombre_item' => 'Limpieza del puesto',
+            'cumple' => false,
+            'observaciones' => 'Debe limpiar el área',
+            'orden' => 2,
+        ],
+    ]);
+
+    $response = get('/api/v1/reportes/inspecciones?fecha_inicio=2026-05-02&fecha_fin=2026-05-02', [
+        'X-Feria-Id' => (string) $feria->id,
+    ]);
+
+    $response
+        ->assertOk()
+        ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        ->assertDownload('reporte_inspecciones_20260502_20260502.xlsx');
+
+    $worksheetXml = extractWorksheetXml($response->baseResponse->getFile()->getPathname());
+
+    expect($worksheetXml)->toContain('ID Inspección');
+    expect($worksheetXml)->toContain('Inspección');
+    expect($worksheetXml)->toContain('Marvin Ruiz Martinez');
+    expect($worksheetXml)->toContain('Uso correcto del carné');
+    expect($worksheetXml)->toContain('Limpieza del puesto');
+    expect($worksheetXml)->toContain('Debe limpiar el área');
+    expect(cellXml($worksheetXml, 'J2'))->toContain('s="3"');
+    expect(cellXml($worksheetXml, 'J2'))->toContain('<v>2</v>');
+    expect(cellXml($worksheetXml, 'K2'))->toContain('s="3"');
+    expect(cellXml($worksheetXml, 'K2'))->toContain('<v>1</v>');
+});
+
+it('downloads the reinspections report as xlsx with original inspection context', function (): void {
+    $feria = reporteFeria();
+    $usuario = authenticateForReportes('supervisor', ['inspecciones.ver'], $feria);
+    $participante = participanteReporte($feria);
+
+    $inspeccionOriginal = Inspeccion::create([
+        'feria_id' => $feria->id,
+        'participante_id' => $participante->id,
+        'user_id' => $usuario->id,
+        'reinspeccion_de_id' => null,
+        'total_items' => 2,
+        'total_incumplidos' => 2,
+    ]);
+    $inspeccionOriginal->forceFill([
+        'created_at' => '2026-05-02 16:30:00',
+        'updated_at' => '2026-05-02 16:30:00',
+    ])->save();
+
+    $reinspeccion = Inspeccion::create([
+        'feria_id' => $feria->id,
+        'participante_id' => $participante->id,
+        'user_id' => $usuario->id,
+        'reinspeccion_de_id' => $inspeccionOriginal->id,
+        'total_items' => 2,
+        'total_incumplidos' => 1,
+    ]);
+    $reinspeccion->forceFill([
+        'created_at' => '2026-05-03 05:50:00',
+        'updated_at' => '2026-05-03 05:50:00',
+    ])->save();
+    $reinspeccion->items()->createMany([
+        [
+            'item_diagnostico_id' => null,
+            'nombre_item' => 'Limpieza del puesto',
+            'cumple' => true,
+            'observaciones' => 'Corregido',
+            'orden' => 1,
+        ],
+        [
+            'item_diagnostico_id' => null,
+            'nombre_item' => 'Rotulación visible',
+            'cumple' => false,
+            'observaciones' => 'Pendiente',
+            'orden' => 2,
+        ],
+    ]);
+
+    $response = get('/api/v1/reportes/reinspecciones?fecha_inicio=2026-05-02&fecha_fin=2026-05-02', [
+        'X-Feria-Id' => (string) $feria->id,
+    ]);
+
+    $response
+        ->assertOk()
+        ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        ->assertDownload('reporte_reinspecciones_20260502_20260502.xlsx');
+
+    $worksheetXml = extractWorksheetXml($response->baseResponse->getFile()->getPathname());
+
+    expect($worksheetXml)->toContain('ID Reinspección');
+    expect($worksheetXml)->toContain('ID Inspección Original');
+    expect($worksheetXml)->toContain('Marvin Ruiz Martinez');
+    expect($worksheetXml)->toContain('Limpieza del puesto');
+    expect($worksheetXml)->toContain('Rotulación visible');
+    expect($worksheetXml)->toContain('Corregido');
+    expect($worksheetXml)->toContain('Pendiente');
+    expect(cellXml($worksheetXml, 'J2'))->toContain('s="3"');
+    expect(cellXml($worksheetXml, 'J2'))->toContain('<v>2</v>');
+    expect(cellXml($worksheetXml, 'K2'))->toContain('s="3"');
+    expect(cellXml($worksheetXml, 'K2'))->toContain('<v>2</v>');
+    expect(cellXml($worksheetXml, 'L2'))->toContain('s="3"');
+    expect(cellXml($worksheetXml, 'L2'))->toContain('<v>1</v>');
 });
 
 it('downloads the card expiration report filtered by fair', function (): void {

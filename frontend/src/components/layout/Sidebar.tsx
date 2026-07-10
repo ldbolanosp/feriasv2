@@ -96,6 +96,18 @@ const navItems: NavItem[] = [
         permission: 'tarimas.ver',
       },
       {
+        label: 'Inspecciones',
+        to: '/reportes/inspecciones',
+        icon: <ClipboardList className="size-4" />,
+        permission: 'inspecciones.ver',
+      },
+      {
+        label: 'Reinspecciones',
+        to: '/reportes/reinspecciones',
+        icon: <ClipboardCheck className="size-4" />,
+        permission: 'inspecciones.ver',
+      },
+      {
         label: 'Vencimiento carné',
         to: '/reportes/vencimiento-carne',
         icon: <ClipboardList className="size-4" />,

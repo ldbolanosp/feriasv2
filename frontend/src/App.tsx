@@ -20,7 +20,9 @@ import { ParticipanteFormPage } from '@/pages/participantes/ParticipanteFormPage
 import { ProductosPage } from '@/pages/productos/ProductosPage'
 import {
   ReportesFacturacionPage,
+  ReportesInspeccionesPage,
   ReportesParqueosPage,
+  ReportesReinspeccionesPage,
   ReportesTarimasPage,
   ReportesVencimientoCarnePage,
 } from '@/pages/reportes/ReportesPage'
@@ -139,6 +141,22 @@ export default function App() {
               element={
                 <ProtectedRoute permission="tarimas.ver">
                   <ReportesTarimasPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reportes/inspecciones"
+              element={
+                <ProtectedRoute permission="inspecciones.ver">
+                  <ReportesInspeccionesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reportes/reinspecciones"
+              element={
+                <ProtectedRoute permission="inspecciones.ver">
+                  <ReportesReinspeccionesPage />
                 </ProtectedRoute>
               }
             />

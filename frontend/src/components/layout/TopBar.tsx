@@ -22,6 +22,8 @@ const pageTitles: Record<string, string> = {
   '/reportes/facturacion': 'Reporte de facturación',
   '/reportes/parqueos': 'Reporte de parqueos',
   '/reportes/tarimas': 'Reporte de tarimas',
+  '/reportes/inspecciones': 'Reporte de inspecciones',
+  '/reportes/reinspecciones': 'Reporte de reinspecciones',
   '/reportes/vencimiento-carne': 'Reporte de vencimiento de carné',
   '/tarimas': 'Tarimas',
   '/sanitarios': 'Sanitarios',

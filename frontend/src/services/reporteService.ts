@@ -95,6 +95,28 @@ export async function downloadReporteTarimas(params: ReporteParams): Promise<voi
   )
 }
 
+export async function downloadReporteInspecciones(params: ReporteParams): Promise<void> {
+  const feriaIdLabel = params.feria_id ? `_feria_${params.feria_id}` : ''
+  const fallbackFilename = `reporte_inspecciones_${params.fecha_inicio.replaceAll('-', '')}_${params.fecha_fin.replaceAll('-', '')}.xlsx`
+
+  await downloadReporte(
+    '/reportes/inspecciones',
+    params,
+    fallbackFilename.replace('.xlsx', `${feriaIdLabel}.xlsx`),
+  )
+}
+
+export async function downloadReporteReinspecciones(params: ReporteParams): Promise<void> {
+  const feriaIdLabel = params.feria_id ? `_feria_${params.feria_id}` : ''
+  const fallbackFilename = `reporte_reinspecciones_${params.fecha_inicio.replaceAll('-', '')}_${params.fecha_fin.replaceAll('-', '')}.xlsx`
+
+  await downloadReporte(
+    '/reportes/reinspecciones',
+    params,
+    fallbackFilename.replace('.xlsx', `${feriaIdLabel}.xlsx`),
+  )
+}
+
 export async function downloadReporteVencimientoCarne(
   params: ReporteSinFechasParams,
 ): Promise<void> {

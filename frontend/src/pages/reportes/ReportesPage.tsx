@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Box, Car, Download, IdCard, Loader2, Receipt } from 'lucide-react'
+import { Box, Car, ClipboardCheck, ClipboardList, Download, IdCard, Loader2, Receipt } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { isAxiosError } from 'axios'
 import { useFerias } from '@/hooks/useFerias'
@@ -18,7 +18,9 @@ import {
 } from '@/components/ui/select'
 import {
   downloadReporteFacturacion,
+  downloadReporteInspecciones,
   downloadReporteParqueos,
+  downloadReporteReinspecciones,
   downloadReporteTarimas,
   downloadReporteVencimientoCarne,
 } from '@/services/reporteService'
@@ -299,6 +301,90 @@ export function ReportesTarimasPage() {
         feriaOptions={feriaOptions}
         onDownload={(params) =>
           downloadReporteTarimas({
+            fecha_inicio: params.fecha_inicio ?? today,
+            fecha_fin: params.fecha_fin ?? today,
+            feria_id: params.feria_id,
+          })
+        }
+      />
+    </div>
+  )
+}
+
+export function ReportesInspeccionesPage() {
+  const roles = useAuthStore((state) => state.roles)
+  const feriasUsuario = useAuthStore((state) => state.ferias)
+  const isAdmin = roles.includes('administrador')
+  const { data: feriasData } = useFerias(
+    {
+      page: 1,
+      per_page: 100,
+      activa: true,
+      sort: 'codigo',
+      direction: 'asc',
+    },
+    isAdmin,
+  )
+
+  const feriaOptions = buildFeriaOptions(isAdmin ? (feriasData?.data ?? []) : feriasUsuario)
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Reporte de inspecciones"
+        description="Exporte las inspecciones realizadas y sus ítems revisados para el rango de fechas seleccionado."
+      />
+
+      <ReporteCard
+        title="Inspecciones"
+        description="Incluye participante, inspector, tipo de revisión, totales de cumplimiento e ítems revisados."
+        icon={ClipboardList}
+        buttonLabel="Descargar reporte"
+        feriaOptions={feriaOptions}
+        onDownload={(params) =>
+          downloadReporteInspecciones({
+            fecha_inicio: params.fecha_inicio ?? today,
+            fecha_fin: params.fecha_fin ?? today,
+            feria_id: params.feria_id,
+          })
+        }
+      />
+    </div>
+  )
+}
+
+export function ReportesReinspeccionesPage() {
+  const roles = useAuthStore((state) => state.roles)
+  const feriasUsuario = useAuthStore((state) => state.ferias)
+  const isAdmin = roles.includes('administrador')
+  const { data: feriasData } = useFerias(
+    {
+      page: 1,
+      per_page: 100,
+      activa: true,
+      sort: 'codigo',
+      direction: 'asc',
+    },
+    isAdmin,
+  )
+
+  const feriaOptions = buildFeriaOptions(isAdmin ? (feriasData?.data ?? []) : feriasUsuario)
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Reporte de reinspecciones"
+        description="Exporte las reinspecciones realizadas y su relación con la inspección original."
+      />
+
+      <ReporteCard
+        title="Reinspecciones"
+        description="Incluye participante, inspector, inspección original, incumplidos e ítems revisados."
+        icon={ClipboardCheck}
+        buttonLabel="Descargar reporte"
+        feriaOptions={feriaOptions}
+        onDownload={(params) =>
+          downloadReporteReinspecciones({
             fecha_inicio: params.fecha_inicio ?? today,
             fecha_fin: params.fecha_fin ?? today,
             feria_id: params.feria_id,

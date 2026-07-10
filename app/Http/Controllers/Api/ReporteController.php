@@ -75,6 +75,46 @@ class ReporteController extends Controller
         )->deleteFileAfterSend(true);
     }
 
+    public function inspecciones(ExportReporteRequest $request): BinaryFileResponse
+    {
+        $feriaId = $request->filled('feria_id') ? $request->integer('feria_id') : null;
+
+        $reporte = $this->reporteService->generarInspecciones(
+            $request->user(),
+            $feriaId,
+            CarbonImmutable::parse($request->validated('fecha_inicio')),
+            CarbonImmutable::parse($request->validated('fecha_fin')),
+        );
+
+        return response()->download(
+            $reporte['path'],
+            $reporte['filename'],
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]
+        )->deleteFileAfterSend(true);
+    }
+
+    public function reinspecciones(ExportReporteRequest $request): BinaryFileResponse
+    {
+        $feriaId = $request->filled('feria_id') ? $request->integer('feria_id') : null;
+
+        $reporte = $this->reporteService->generarReinspecciones(
+            $request->user(),
+            $feriaId,
+            CarbonImmutable::parse($request->validated('fecha_inicio')),
+            CarbonImmutable::parse($request->validated('fecha_fin')),
+        );
+
+        return response()->download(
+            $reporte['path'],
+            $reporte['filename'],
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]
+        )->deleteFileAfterSend(true);
+    }
+
     public function vencimientoCarne(ExportCarnesVencimientoRequest $request): BinaryFileResponse
     {
         $feriaId = $request->filled('feria_id') ? $request->integer('feria_id') : null;
